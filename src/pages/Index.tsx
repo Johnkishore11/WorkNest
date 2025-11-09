@@ -13,37 +13,46 @@ const Index = () => {
       <Navbar />
       
       {/* Hero Section */}
-      <section 
-        className="relative py-24 px-4 overflow-hidden"
-        style={{
-          backgroundImage: `linear-gradient(135deg, rgba(14, 165, 233, 0.95) 0%, rgba(59, 130, 246, 0.9) 100%), url(${heroBg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      >
-        <div className="container mx-auto max-w-6xl text-center relative z-10">
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            Welcome to WorkNest
-          </h1>
-          <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Connect with top freelance talent or showcase your skills to clients worldwide
-          </p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Button 
-              size="lg" 
-              onClick={() => navigate("/auth")}
-              className="bg-accent hover:bg-accent/90 text-white font-semibold px-8"
-            >
-              Get Started
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
-              onClick={() => navigate("/auth")}
-              className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
-            >
-              Learn More
-            </Button>
+      <section className="relative min-h-[700px] flex items-center justify-center overflow-hidden">
+        <div 
+          className="absolute inset-0 z-0"
+          style={{
+            backgroundImage: `url(${heroBg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/95 to-accent" />
+        </div>
+        
+        <div className="container mx-auto px-4 py-24 relative z-10">
+          <div className="max-w-4xl mx-auto text-center text-white">
+            <h1 className="text-6xl md:text-7xl font-extrabold mb-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 tracking-tight">
+              Find Your Perfect
+              <span className="block mt-2 bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">
+                Freelancer
+              </span>
+            </h1>
+            <p className="text-xl md:text-2xl mb-10 text-white/95 animate-in fade-in slide-in-from-bottom-5 duration-1000 delay-200 max-w-2xl mx-auto leading-relaxed">
+              Connect with talented professionals across various domains and bring your projects to life with confidence
+            </p>
+            <div className="flex gap-4 justify-center animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
+              <Button 
+                size="lg" 
+                onClick={() => navigate("/auth")}
+                className="bg-white text-primary hover:bg-white/90 text-lg px-10 py-7 shadow-2xl hover:shadow-white/20 transition-all hover:scale-105"
+              >
+                Get Started Free
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline"
+                onClick={() => navigate("/auth")}
+                className="bg-white/10 text-white border-white/30 hover:bg-white/20 text-lg px-10 py-7 backdrop-blur-sm"
+              >
+                Learn More
+              </Button>
+            </div>
           </div>
         </div>
       </section>

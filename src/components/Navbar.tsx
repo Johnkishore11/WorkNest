@@ -29,34 +29,35 @@ export const Navbar = () => {
   };
 
   return (
-    <nav className="border-b bg-card">
+    <nav className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+        <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent hover:opacity-80 transition-opacity">
           WorkNest
         </Link>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {user ? (
             <>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate("/dashboard")}
+                className="hover:bg-primary/10"
               >
                 <UserIcon className="h-4 w-4 mr-2" />
                 Dashboard
               </Button>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
+              <Button variant="outline" size="sm" onClick={handleLogout} className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive">
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
             </>
           ) : (
             <>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="hover:bg-primary/10">
                 Login
               </Button>
-              <Button size="sm" onClick={() => navigate("/auth")}>
+              <Button size="sm" onClick={() => navigate("/auth")} className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
                 Get Started
               </Button>
             </>
