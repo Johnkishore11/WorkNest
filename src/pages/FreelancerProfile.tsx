@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Mail, DollarSign, ExternalLink } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export default function FreelancerProfile() {
   const { userId } = useParams();
@@ -75,32 +76,42 @@ export default function FreelancerProfile() {
         </Button>
 
         {/* Profile Header */}
-        <Card className="mb-6">
+        <Card className="mb-8 border-2">
           <CardHeader>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start gap-6">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={profile?.profile_image || ""} />
+                <AvatarFallback className="text-3xl bg-primary/10 text-primary">
+                  {profile?.full_name?.charAt(0) || "U"}
+                </AvatarFallback>
+              </Avatar>
               <div className="flex-1">
-                <CardTitle className="text-3xl mb-2">{profile?.full_name}</CardTitle>
-                <CardDescription className="text-base">
-                  {profile?.bio || "No bio provided"}
-                </CardDescription>
-                {freelancerProfile?.hourly_rate && (
-                  <div className="flex items-center text-2xl font-bold text-primary mt-4">
-                    <DollarSign className="h-6 w-6 mr-1" />
-                    {freelancerProfile.hourly_rate}/hr
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-2xl">{profile?.full_name}</CardTitle>
+                    <CardDescription className="mt-2 text-base">
+                      {profile?.bio || "No bio provided"}
+                    </CardDescription>
+                    {freelancerProfile?.hourly_rate && (
+                      <div className="flex items-center mt-4 text-xl font-semibold text-primary">
+                        <DollarSign className="h-5 w-5 mr-1" />
+                        {freelancerProfile.hourly_rate}/hr
+                      </div>
+                    )}
                   </div>
-                )}
+                  <Button onClick={() => navigate(`/contact/${userId}`)}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Contact
+                  </Button>
+                </div>
               </div>
-              <Button onClick={() => navigate(`/contact/${userId}`)}>
-                <Mail className="h-4 w-4 mr-2" />
-                Contact
-              </Button>
             </div>
           </CardHeader>
         </Card>
 
         {/* Skills */}
         {freelancerProfile?.skills && freelancerProfile.skills.length > 0 && (
-          <Card className="mb-6">
+          <Card className="mb-8 border-2">
             <CardHeader>
               <CardTitle>Skills & Expertise</CardTitle>
             </CardHeader>
@@ -117,39 +128,43 @@ export default function FreelancerProfile() {
         )}
 
         {/* Portfolio */}
-        <Card>
+        <Card className="border-2">
           <CardHeader>
             <CardTitle>Portfolio</CardTitle>
             <CardDescription>Featured projects and work samples</CardDescription>
           </CardHeader>
           <CardContent>
             {portfolios.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No portfolio items yet</p>
+              <p className="text-muted-foreground text-center py-8">No portfolio items yet.</p>
             ) : (
               <div className="grid gap-6 md:grid-cols-2">
                 {portfolios.map((item) => (
-                  <Card key={item.id} className="overflow-hidden">
+                  <Card key={item.id} className="hover:shadow-lg transition-shadow overflow-hidden border-2">
                     {item.image_url && (
-                      <img
-                        src={item.image_url}
-                        alt={item.title}
-                        className="w-full h-48 object-cover"
-                      />
+                      <div className="aspect-video overflow-hidden">
+                        <img
+                          src={item.image_url}
+                          alt={item.title}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform"
+                        />
+                      </div>
                     )}
                     <CardHeader>
-                      <CardTitle>{item.title}</CardTitle>
-                      <CardDescription>{item.description}</CardDescription>
+                      <CardTitle className="text-lg">{item.title}</CardTitle>
+                      {item.description && (
+                        <CardDescription>{item.description}</CardDescription>
+                      )}
                     </CardHeader>
                     {item.project_link && (
                       <CardContent>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(item.project_link, "_blank")}
+                        <a
+                          href={item.project_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline flex items-center gap-2 font-medium"
                         >
-                          View Project
-                          <ExternalLink className="ml-2 h-4 w-4" />
-                        </Button>
+                          View Project <ExternalLink className="h-4 w-4" />
+                        </a>
                       </CardContent>
                     )}
                   </Card>

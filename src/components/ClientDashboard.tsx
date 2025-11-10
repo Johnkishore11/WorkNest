@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
-import { Search, Mail } from "lucide-react";
+import { Search, Mail, Inbox, Users, MessageCircle, Briefcase } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 
 interface ClientDashboardProps {
@@ -42,26 +42,62 @@ export default function ClientDashboard({ userId }: ClientDashboardProps) {
         <p className="text-muted-foreground">Find and hire talented freelancers</p>
       </div>
 
+      {/* Quick Stats */}
+      <div className="grid gap-4 md:grid-cols-3 mb-8">
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
+            <Briefcase className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">Start your first project</p>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Hired Freelancers</CardTitle>
+            <Users className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">Browse freelancers below</p>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border-purple-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Messages</CardTitle>
+            <MessageCircle className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">No new messages</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-4">Browse by Domain</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {domains.map((domain) => (
             <Card
               key={domain.id}
-              className="hover:shadow-lg transition-all cursor-pointer group"
+              className="hover:shadow-lg transition-all cursor-pointer group border-2 hover:border-primary/50"
               onClick={() => navigate(`/freelancers/${domain.id}`)}
             >
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <div className="p-3 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary group-hover:from-primary group-hover:to-primary/80 group-hover:text-primary-foreground transition-all shadow-lg">
                     {getIcon(domain.icon)}
                   </div>
                 </div>
-                <CardTitle className="mt-4">{domain.name}</CardTitle>
-                <CardDescription>{domain.description}</CardDescription>
+                <CardTitle className="mt-4 group-hover:text-primary transition-colors">{domain.name}</CardTitle>
+                <CardDescription className="line-clamp-2">{domain.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="ghost" className="w-full group-hover:bg-primary group-hover:text-primary-foreground">
+                <Button variant="ghost" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-all">
                   View Freelancers
                   <Search className="ml-2 h-4 w-4" />
                 </Button>
@@ -71,16 +107,21 @@ export default function ClientDashboard({ userId }: ClientDashboardProps) {
         </div>
       </div>
 
-      <Card>
+      <Card className="border-2">
         <CardHeader>
-          <CardTitle>Messages</CardTitle>
+          <div className="flex items-center gap-2">
+            <Inbox className="h-5 w-5 text-primary" />
+            <CardTitle>Messages</CardTitle>
+          </div>
           <CardDescription>Your conversations with freelancers</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-12">
-            <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No messages yet</p>
-            <p className="text-sm text-muted-foreground mt-2">
+            <div className="mx-auto w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+              <Mail className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <p className="text-lg font-medium mb-2">No messages yet</p>
+            <p className="text-sm text-muted-foreground">
               Start by browsing freelancers and reaching out to them
             </p>
           </div>

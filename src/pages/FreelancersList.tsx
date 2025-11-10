@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Mail, DollarSign } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface Freelancer {
   id: string;
@@ -15,6 +16,7 @@ interface Freelancer {
   profiles: {
     full_name: string;
     bio: string;
+    profile_image: string;
   };
 }
 
@@ -48,7 +50,8 @@ export default function FreelancersList() {
         *,
         profiles (
           full_name,
-          bio
+          bio,
+          profile_image
         )
       `)
       .eq("domain_id", domainId);
@@ -97,12 +100,18 @@ export default function FreelancersList() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2">
             {freelancers.map((freelancer) => (
-              <Card key={freelancer.id} className="hover:shadow-lg transition-shadow">
+              <Card key={freelancer.id} className="hover:shadow-lg transition-shadow border-2 hover:border-primary/30">
                 <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={freelancer.profiles.profile_image || ""} />
+                      <AvatarFallback className="text-xl bg-primary/10 text-primary">
+                        {freelancer.profiles.full_name?.charAt(0) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
                       <CardTitle>{freelancer.profiles.full_name}</CardTitle>
-                      <CardDescription className="mt-2">
+                      <CardDescription className="mt-2 line-clamp-2">
                         {freelancer.profiles.bio || "No bio provided"}
                       </CardDescription>
                     </div>

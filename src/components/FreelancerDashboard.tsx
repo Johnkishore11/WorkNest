@@ -19,11 +19,15 @@ import {
   CheckCircle2,
   Clock,
   Edit2,
-  Globe
+  Globe,
+  Upload,
+  Camera,
+  ExternalLink
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Switch } from "./ui/switch";
 import { Progress } from "./ui/progress";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 
 interface FreelancerDashboardProps {
   userId: string;
@@ -51,6 +55,9 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
   const [isAddingPortfolio, setIsAddingPortfolio] = useState(false);
   const [newSkill, setNewSkill] = useState("");
   const [isAvailable, setIsAvailable] = useState(true);
+  const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
+  const [uploadingPortfolioImage, setUploadingPortfolioImage] = useState(false);
+  const [portfolioImageUrl, setPortfolioImageUrl] = useState("");
 
   useEffect(() => {
     loadData();
@@ -87,6 +94,69 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
         .eq("freelancer_id", freelancerData.id);
       setPortfolios(portfoliosData || []);
     }
+  };
+
+  const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingProfileImage(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/${Math.random()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(fileName, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error("Error uploading image");
+      setUploadingProfileImage(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(fileName);
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ profile_image: publicUrl })
+      .eq('id', userId);
+
+    if (updateError) {
+      toast.error("Error updating profile");
+    } else {
+      toast.success("Profile image updated successfully");
+      loadData();
+    }
+    setUploadingProfileImage(false);
+  };
+
+  const handlePortfolioImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingPortfolioImage(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/${Math.random()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('portfolio-images')
+      .upload(fileName, file);
+
+    if (uploadError) {
+      toast.error("Error uploading image");
+      setUploadingPortfolioImage(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('portfolio-images')
+      .getPublicUrl(fileName);
+
+    setPortfolioImageUrl(publicUrl);
+    setUploadingPortfolioImage(false);
+    toast.success("Image uploaded successfully");
   };
 
   const handleSaveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -176,7 +246,7 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
       title: formData.get("title") as string,
       description: formData.get("description") as string,
       project_link: formData.get("projectLink") as string,
-      image_url: formData.get("imageUrl") as string,
+      image_url: portfolioImageUrl,
     }]);
 
     if (error) {
@@ -186,6 +256,7 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
 
     toast.success("Portfolio item added!");
     setIsAddingPortfolio(false);
+    setPortfolioImageUrl("");
     loadData();
   };
 
@@ -203,9 +274,10 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
     let completion = 0;
     if (profile?.full_name) completion += 20;
     if (profile?.bio) completion += 20;
-    if (freelancerProfile?.hourly_rate) completion += 20;
-    if (freelancerProfile?.skills?.length > 0) completion += 20;
-    if (portfolios.length > 0) completion += 20;
+    if (profile?.profile_image) completion += 15;
+    if (freelancerProfile?.hourly_rate) completion += 15;
+    if (freelancerProfile?.skills?.length > 0) completion += 15;
+    if (portfolios.length > 0) completion += 15;
     return completion;
   };
 
@@ -233,6 +305,40 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
               <Switch checked={isAvailable} onCheckedChange={setIsAvailable} />
             </div>
           </div>
+
+          {/* Profile Header with Avatar */}
+          <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 mb-4">
+            <CardHeader>
+              <div className="flex items-start gap-6">
+                <div className="relative group">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={profile?.profile_image || ""} />
+                    <AvatarFallback className="text-2xl">
+                      {profile?.full_name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <label 
+                    htmlFor="profile-image-upload" 
+                    className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  >
+                    <Camera className="h-8 w-8 text-white" />
+                  </label>
+                  <input
+                    id="profile-image-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleProfileImageUpload}
+                    disabled={uploadingProfileImage}
+                  />
+                </div>
+                <div>
+                  <CardTitle className="text-2xl">{profile?.full_name || "Set your name"}</CardTitle>
+                  <CardDescription className="mt-2">{profile?.bio || "Add a bio to tell clients about yourself"}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
 
           {/* Profile Completion */}
           <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
@@ -455,19 +561,19 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                       </Badge>
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground py-4">No skills added yet. Add your first skill below!</p>
+                    <p className="text-muted-foreground text-sm">No skills added yet</p>
                   )}
                 </div>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Add a skill (e.g., React, Node.js, UI/UX)"
+                    placeholder="Add a skill (e.g., React, Python)"
                     value={newSkill}
                     onChange={(e) => setNewSkill(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
                     className="flex-1"
                   />
-                  <Button onClick={addSkill} size="sm" className="px-4">
-                    <Plus className="h-4 w-4 mr-2" />
+                  <Button onClick={addSkill} size="sm" type="button">
+                    <Plus className="h-4 w-4 mr-1" />
                     Add
                   </Button>
                 </div>
@@ -475,198 +581,144 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
             </Card>
           </div>
 
-          {/* Right Column - Quick Stats */}
+          {/* Right Column - Portfolio */}
           <div className="space-y-6">
-            <Card className="shadow-lg">
-              <CardHeader className="bg-gradient-to-br from-primary/10 to-accent/10">
-                <CardTitle className="text-lg">Quick Stats</CardTitle>
+            <Card className="shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader className="bg-gradient-to-r from-success/5 to-primary/5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Briefcase className="h-5 w-5 text-success" />
+                      Portfolio
+                    </CardTitle>
+                    <CardDescription>Your best work</CardDescription>
+                  </div>
+                  {!isAddingPortfolio && (
+                    <Button onClick={() => setIsAddingPortfolio(true)} size="sm">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-primary" />
-                    <span className="text-sm font-medium">Response Time</span>
-                  </div>
-                  <span className="text-sm font-bold">2 hours</span>
-                </div>
-                
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <MessageSquare className="h-5 w-5 text-accent" />
-                    <span className="text-sm font-medium">Messages</span>
-                  </div>
-                  <Badge variant="secondary">5 New</Badge>
-                </div>
-                
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="h-5 w-5 text-success" />
-                    <span className="text-sm font-medium">Growth</span>
-                  </div>
-                  <span className="text-sm font-bold text-success">+24%</span>
-                </div>
-              </CardContent>
-            </Card>
+              <CardContent className="pt-6">
+                {isAddingPortfolio && (
+                  <form onSubmit={handleAddPortfolio} className="space-y-4 mb-6 p-4 bg-muted/30 rounded-lg border">
+                    <div>
+                      <Label htmlFor="title">Project Title *</Label>
+                      <Input id="title" name="title" required className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea id="description" name="description" rows={3} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="projectLink">Project Link</Label>
+                      <Input id="projectLink" name="projectLink" type="url" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="portfolio-image" className="mb-2 block">
+                        Project Image
+                      </Label>
+                      <div className="flex items-center gap-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => document.getElementById('portfolio-image')?.click()}
+                          disabled={uploadingPortfolioImage}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {uploadingPortfolioImage ? "Uploading..." : "Upload Image"}
+                        </Button>
+                        {portfolioImageUrl && (
+                          <img 
+                            src={portfolioImageUrl} 
+                            alt="Preview" 
+                            className="h-16 w-16 object-cover rounded"
+                          />
+                        )}
+                      </div>
+                      <input
+                        id="portfolio-image"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handlePortfolioImageUpload}
+                        disabled={uploadingPortfolioImage}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1">Add Portfolio</Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIsAddingPortfolio(false);
+                          setPortfolioImageUrl("");
+                        }}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                )}
 
-            <Card className="shadow-lg bg-gradient-to-br from-primary via-primary to-accent text-white">
-              <CardHeader>
-                <CardTitle className="text-white">Pro Tip</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-white/90 leading-relaxed">
-                  Add at least 3 portfolio projects with high-quality images to increase your profile visibility by up to 70%!
-                </p>
+                <div className="space-y-4">
+                  {portfolios.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8 text-sm">
+                      No portfolio items yet. Add your first project!
+                    </p>
+                  ) : (
+                    portfolios.map((portfolio) => (
+                      <Card key={portfolio.id} className="group hover:shadow-md transition-all overflow-hidden">
+                        {portfolio.image_url && (
+                          <div className="aspect-video overflow-hidden">
+                            <img
+                              src={portfolio.image_url}
+                              alt={portfolio.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          </div>
+                        )}
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <CardTitle className="text-base">{portfolio.title}</CardTitle>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deletePortfolio(portfolio.id)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                          {portfolio.description && (
+                            <CardDescription className="text-sm line-clamp-2">
+                              {portfolio.description}
+                            </CardDescription>
+                          )}
+                        </CardHeader>
+                        {portfolio.project_link && (
+                          <CardContent className="pt-0">
+                            <a
+                              href={portfolio.project_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline flex items-center gap-1"
+                            >
+                              View Project <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </CardContent>
+                        )}
+                      </Card>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
-
-        {/* Portfolio Section */}
-        <Card className="mt-6 shadow-lg hover:shadow-xl transition-shadow">
-          <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5">
-            <div className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Briefcase className="h-5 w-5 text-primary" />
-                  Portfolio Showcase
-                </CardTitle>
-                <CardDescription>Display your best work and achievements</CardDescription>
-              </div>
-              <Button onClick={() => setIsAddingPortfolio(true)} size="sm" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Project
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {isAddingPortfolio && (
-              <form onSubmit={handleAddPortfolio} className="mb-6 p-6 border-2 border-dashed border-primary/20 rounded-lg space-y-4 bg-muted/30">
-                <h3 className="font-semibold text-lg mb-4">Add New Project</h3>
-                <div>
-                  <Label htmlFor="title">Project Title *</Label>
-                  <Input 
-                    id="title" 
-                    name="title" 
-                    required 
-                    className="mt-1"
-                    placeholder="E-commerce Website Redesign"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea 
-                    id="description" 
-                    name="description" 
-                    rows={3} 
-                    className="mt-1"
-                    placeholder="Describe the project, your role, and key achievements..."
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="projectLink">Project Link</Label>
-                  <div className="relative mt-1">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="projectLink" 
-                      name="projectLink" 
-                      type="url" 
-                      className="pl-9"
-                      placeholder="https://example.com"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="imageUrl">Image URL</Label>
-                  <Input 
-                    id="imageUrl" 
-                    name="imageUrl" 
-                    type="url" 
-                    className="mt-1"
-                    placeholder="https://example.com/image.jpg"
-                  />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <Button type="submit" className="flex-1">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Project
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsAddingPortfolio(false)}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            )}
-
-            {portfolios.length === 0 ? (
-              <div className="text-center py-16 bg-muted/30 rounded-lg border-2 border-dashed">
-                <Briefcase className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">No Portfolio Projects Yet</h3>
-                <p className="text-muted-foreground mb-6">
-                  Start building your portfolio to showcase your best work
-                </p>
-                <Button
-                  onClick={() => setIsAddingPortfolio(true)}
-                  variant="default"
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Your First Project
-                </Button>
-              </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {portfolios.map((item) => (
-                  <Card 
-                    key={item.id} 
-                    className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden"
-                  >
-                    {item.image_url && (
-                      <div className="relative h-48 overflow-hidden bg-muted">
-                        <img
-                          src={item.image_url}
-                          alt={item.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    )}
-                    <CardContent className="p-5">
-                      <h3 className="font-bold text-lg mb-2 line-clamp-1">{item.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                        {item.description || "No description provided"}
-                      </p>
-                      <div className="flex gap-2">
-                        {item.project_link && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => window.open(item.project_link, "_blank")}
-                          >
-                            <Globe className="h-4 w-4 mr-2" />
-                            View Live
-                          </Button>
-                        )}
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => deletePortfolio(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
