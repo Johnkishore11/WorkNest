@@ -10,6 +10,7 @@ import FreelancersList from "./pages/FreelancersList";
 import FreelancerProfile from "./pages/FreelancerProfile";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -22,10 +23,10 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/freelancers/:domainId" element={<FreelancersList />} />
-          <Route path="/freelancer/:userId" element={<FreelancerProfile />} />
-          <Route path="/contact/:userId" element={<Contact />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/freelancers/:domainId" element={<ProtectedRoute><FreelancersList /></ProtectedRoute>} />
+          <Route path="/freelancer/:userId" element={<ProtectedRoute><FreelancerProfile /></ProtectedRoute>} />
+          <Route path="/contact/:userId" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -11,18 +11,15 @@ import {
   Briefcase, 
   Plus, 
   Trash2, 
-  TrendingUp, 
   Eye, 
-  MessageSquare, 
   DollarSign,
   Award,
   CheckCircle2,
-  Clock,
   Edit2,
-  Globe,
   Upload,
   Camera,
-  ExternalLink
+  ExternalLink,
+  Star
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Switch } from "./ui/switch";
@@ -284,20 +281,20 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
   const profileCompletion = calculateProfileCompletion();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-muted via-background to-muted/50">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-start justify-between mb-4">
+        <div className="mb-10">
+          <div className="flex items-start justify-between mb-6">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
+              <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 Freelancer Dashboard
               </h1>
-              <p className="text-muted-foreground">Manage your professional profile and showcase your work</p>
+              <p className="text-lg text-muted-foreground">Manage your professional presence and showcase your work</p>
             </div>
-            <div className="flex items-center gap-3 bg-card p-4 rounded-lg shadow-sm border">
+            <div className="flex items-center gap-3 bg-card p-4 rounded-xl shadow-sm border-2 border-border hover:border-primary/50 transition-all">
               <div className="flex flex-col items-end">
-                <span className="text-sm font-medium">Availability Status</span>
+                <span className="text-sm font-semibold">Availability Status</span>
                 <span className="text-xs text-muted-foreground">
                   {isAvailable ? "Open to work" : "Unavailable"}
                 </span>
@@ -307,21 +304,21 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
           </div>
 
           {/* Profile Header with Avatar */}
-          <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 mb-4">
+          <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-2 border-primary/20 hover:border-primary/40 transition-all mb-6 shadow-lg">
             <CardHeader>
               <div className="flex items-start gap-6">
                 <div className="relative group">
-                  <Avatar className="h-24 w-24">
+                  <Avatar className="h-28 w-28 border-4 border-white shadow-xl">
                     <AvatarImage src={profile?.profile_image || ""} />
-                    <AvatarFallback className="text-2xl">
+                    <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-accent text-white">
                       {profile?.full_name?.charAt(0) || "U"}
                     </AvatarFallback>
                   </Avatar>
                   <label 
                     htmlFor="profile-image-upload" 
-                    className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   >
-                    <Camera className="h-8 w-8 text-white" />
+                    <Camera className="h-10 w-10 text-white" />
                   </label>
                   <input
                     id="profile-image-upload"
@@ -332,25 +329,25 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                     disabled={uploadingProfileImage}
                   />
                 </div>
-                <div>
-                  <CardTitle className="text-2xl">{profile?.full_name || "Set your name"}</CardTitle>
-                  <CardDescription className="mt-2">{profile?.bio || "Add a bio to tell clients about yourself"}</CardDescription>
+                <div className="flex-1">
+                  <CardTitle className="text-3xl mb-2">{profile?.full_name || "Set your name"}</CardTitle>
+                  <CardDescription className="text-base">{profile?.bio || "Add a bio to tell clients about yourself"}</CardDescription>
                 </div>
               </div>
             </CardHeader>
           </Card>
 
           {/* Profile Completion */}
-          <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
+          <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-2 border-primary/20 shadow-md">
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Profile Completion</span>
-                <span className="text-sm font-bold text-primary">{profileCompletion}%</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-base font-semibold">Profile Completion</span>
+                <span className="text-lg font-bold text-primary">{profileCompletion}%</span>
               </div>
-              <Progress value={profileCompletion} className="h-2" />
+              <Progress value={profileCompletion} className="h-3" />
               {profileCompletion < 100 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Complete your profile to attract more clients
+                <p className="text-sm text-muted-foreground mt-3">
+                  Complete your profile to attract more clients and stand out
                 </p>
               )}
             </CardContent>
@@ -358,56 +355,58 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-4 mb-8">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Portfolio Projects</p>
-                  <p className="text-3xl font-bold text-primary">{portfolios.length}</p>
-                </div>
-                <Briefcase className="h-8 w-8 text-primary/60" />
+        <div className="grid gap-6 md:grid-cols-4 mb-10">
+          <Card className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-2 border-blue-500/20 hover:border-blue-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-semibold text-muted-foreground">Portfolio Projects</CardTitle>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                <Briefcase className="h-6 w-6 text-white" />
               </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold mb-1">{portfolios.length}</div>
+              <p className="text-sm text-muted-foreground">Showcase pieces</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20 hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Profile Views</p>
-                  <p className="text-3xl font-bold text-accent">127</p>
-                </div>
-                <Eye className="h-8 w-8 text-accent/60" />
+          <Card className="bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent border-2 border-purple-500/20 hover:border-purple-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-semibold text-muted-foreground">Profile Views</CardTitle>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <Eye className="h-6 w-6 text-white" />
               </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold mb-1">0</div>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <span className="text-purple-600">+0%</span> this month
+              </p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20 hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Hourly Rate</p>
-                  <p className="text-3xl font-bold text-success">
-                    ${freelancerProfile?.hourly_rate || 0}
-                  </p>
-                </div>
-                <DollarSign className="h-8 w-8 text-success/60" />
+          <Card className="bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent border-2 border-green-500/20 hover:border-green-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-semibold text-muted-foreground">Hourly Rate</CardTitle>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg">
+                <DollarSign className="h-6 w-6 text-white" />
               </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold mb-1">${freelancerProfile?.hourly_rate || 0}</div>
+              <p className="text-sm text-muted-foreground">Per hour</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20 hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Skills Listed</p>
-                  <p className="text-3xl font-bold text-purple-600">
-                    {freelancerProfile?.skills?.length || 0}
-                  </p>
-                </div>
-                <Award className="h-8 w-8 text-purple-600/60" />
+          <Card className="bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent border-2 border-orange-500/20 hover:border-orange-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-semibold text-muted-foreground">Skills Listed</CardTitle>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg">
+                <Award className="h-6 w-6 text-white" />
               </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold mb-1">{freelancerProfile?.skills?.length || 0}</div>
+              <p className="text-sm text-muted-foreground">Technical skills</p>
             </CardContent>
           </Card>
         </div>
