@@ -38,15 +38,6 @@ export const Navbar = () => {
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/dashboard")}
-                className="hover:bg-primary/10"
-              >
-                <UserIcon className="h-4 w-4 mr-2" />
-                Dashboard
-              </Button>
               <Button variant="outline" size="sm" onClick={handleLogout} className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive">
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
