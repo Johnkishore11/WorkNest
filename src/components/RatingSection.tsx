@@ -42,10 +42,10 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
   const loadRatings = async () => {
     // Load all ratings with client profile info
     const { data: ratingsData } = await supabase
-      .from("ratings")
+      .from("ratings" as any)
       .select(`
         *,
-        profiles!ratings_client_id_fkey (
+        profiles!client_id (
           full_name,
           profile_image
         )
@@ -58,13 +58,13 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
       
       // Calculate average
       if (ratingsData.length > 0) {
-        const avg = ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length;
+        const avg = ratingsData.reduce((sum: number, r: any) => sum + r.rating, 0) / ratingsData.length;
         setAverageRating(avg);
       }
 
       // Check if current user has already rated
       if (currentUserId) {
-        const userRatingData = ratingsData.find(r => r.client_id === currentUserId);
+        const userRatingData: any = ratingsData.find((r: any) => r.client_id === currentUserId);
         if (userRatingData) {
           setUserRating(userRatingData.rating);
           setUserComment(userRatingData.comment || "");
@@ -89,7 +89,7 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
       if (existingRatingId) {
         // Update existing rating
         const { error } = await supabase
-          .from("ratings")
+          .from("ratings" as any)
           .update(ratingData)
           .eq("id", existingRatingId);
 
@@ -98,8 +98,8 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
       } else {
         // Insert new rating
         const { error } = await supabase
-          .from("ratings")
-          .insert(ratingData);
+          .from("ratings" as any)
+          .insert([ratingData]);
 
         if (error) throw error;
         toast({ title: "Rating submitted successfully!" });
