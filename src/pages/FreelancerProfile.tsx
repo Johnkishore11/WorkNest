@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Mail, DollarSign, ExternalLink } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { RatingSection } from "@/components/RatingSection";
 
 export default function FreelancerProfile() {
   const { userId } = useParams();
@@ -15,6 +16,25 @@ export default function FreelancerProfile() {
   const [freelancerProfile, setFreelancerProfile] = useState<any>(null);
   const [portfolios, setPortfolios] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadCurrentUser();
+  }, []);
+
+  const loadCurrentUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setCurrentUser(session.user);
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+      setCurrentUserRole(profileData?.role || null);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -173,6 +193,17 @@ export default function FreelancerProfile() {
             )}
           </CardContent>
         </Card>
+
+        {/* Ratings Section */}
+        {freelancerProfile && (
+          <div className="mt-8">
+            <RatingSection
+              freelancerId={freelancerProfile.id}
+              currentUserId={currentUser?.id || null}
+              userRole={currentUserRole}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
