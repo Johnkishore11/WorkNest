@@ -5,9 +5,10 @@ import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Mail, DollarSign, ExternalLink } from "lucide-react";
+import { Loader2, ArrowLeft, Mail, DollarSign, ExternalLink, Star } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { RatingSection } from "@/components/RatingSection";
+import { RatingDialog } from "@/components/RatingDialog";
 
 export default function FreelancerProfile() {
   const { userId } = useParams();
@@ -18,6 +19,7 @@ export default function FreelancerProfile() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [userRating, setUserRating] = useState<any>(null);
 
   useEffect(() => {
     loadCurrentUser();
@@ -37,8 +39,10 @@ export default function FreelancerProfile() {
   };
 
   useEffect(() => {
-    loadData();
-  }, [userId]);
+    if (currentUserRole !== null) {
+      loadData();
+    }
+  }, [userId, currentUserRole]);
 
   const loadData = async () => {
     // Load profile
@@ -66,6 +70,18 @@ export default function FreelancerProfile() {
         .select("*")
         .eq("freelancer_id", freelancerData.id);
       setPortfolios(portfoliosData || []);
+
+      // Load user's existing rating if they're a client
+      if (currentUser && currentUserRole === "client") {
+        const { data: ratingData } = await supabase
+          .from("ratings")
+          .select("*")
+          .eq("freelancer_id", freelancerData.id)
+          .eq("client_id", currentUser.id)
+          .single();
+        
+        setUserRating(ratingData || null);
+      }
     }
 
     setIsLoading(false);
@@ -119,10 +135,28 @@ export default function FreelancerProfile() {
                       </div>
                     )}
                   </div>
-                  <Button onClick={() => navigate(`/contact/${userId}`)}>
-                    <Mail className="h-4 w-4 mr-2" />
-                    Contact
-                  </Button>
+                  <div className="flex gap-2">
+                    {currentUserRole === "client" && currentUser && (
+                      <RatingDialog
+                        freelancerId={freelancerProfile?.id}
+                        currentUserId={currentUser?.id}
+                        existingRating={userRating?.rating}
+                        existingComment={userRating?.comment}
+                        existingRatingId={userRating?.id}
+                        onRatingSubmitted={loadData}
+                        trigger={
+                          <Button variant="outline">
+                            <Star className="h-4 w-4 mr-2" />
+                            {userRating ? "Update Rating" : "Rate"}
+                          </Button>
+                        }
+                      />
+                    )}
+                    <Button onClick={() => navigate(`/contact/${userId}`)}>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Contact
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
