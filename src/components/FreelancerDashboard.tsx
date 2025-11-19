@@ -55,6 +55,8 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
   const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
   const [uploadingPortfolioImage, setUploadingPortfolioImage] = useState(false);
   const [portfolioImageUrl, setPortfolioImageUrl] = useState("");
+  const [averageRating, setAverageRating] = useState(0);
+  const [totalRatings, setTotalRatings] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -83,13 +85,25 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
     const { data: domainsData } = await supabase.from("domains").select("*");
     setDomains(domainsData || []);
 
-    // Load portfolios
+    // Load portfolios and ratings
     if (freelancerData) {
       const { data: portfoliosData } = await supabase
         .from("portfolios")
         .select("*")
         .eq("freelancer_id", freelancerData.id);
       setPortfolios(portfoliosData || []);
+
+      // Load ratings
+      const { data: ratingsData } = await supabase
+        .from("ratings")
+        .select("rating")
+        .eq("freelancer_id", freelancerData.id);
+
+      if (ratingsData && ratingsData.length > 0) {
+        const avg = ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length;
+        setAverageRating(avg);
+        setTotalRatings(ratingsData.length);
+      }
     }
   };
 
@@ -369,18 +383,19 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent border-2 border-purple-500/20 hover:border-purple-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
+          <Card className="bg-gradient-to-br from-yellow-500/10 via-yellow-500/5 to-transparent border-2 border-yellow-500/20 hover:border-yellow-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-semibold text-muted-foreground">Profile Views</CardTitle>
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg">
-                <Eye className="h-6 w-6 text-white" />
+              <CardTitle className="text-sm font-semibold text-muted-foreground">Average Rating</CardTitle>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-yellow-500 to-yellow-600 flex items-center justify-center shadow-lg">
+                <Star className="h-6 w-6 text-white fill-white" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold mb-1">0</div>
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <span className="text-purple-600">+0%</span> this month
-              </p>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="text-4xl font-bold">{totalRatings > 0 ? averageRating.toFixed(1) : '0.0'}</div>
+                <Star className="h-6 w-6 fill-yellow-400 text-yellow-400" />
+              </div>
+              <p className="text-sm text-muted-foreground">{totalRatings} {totalRatings === 1 ? 'review' : 'reviews'}</p>
             </CardContent>
           </Card>
 

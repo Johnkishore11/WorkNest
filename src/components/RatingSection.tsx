@@ -194,29 +194,33 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
       {/* List of Ratings */}
       {ratings.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Reviews</h3>
+          <h3 className="text-lg font-semibold">Client Reviews</h3>
           {ratings.map((rating) => (
-            <Card key={rating.id}>
+            <Card key={rating.id} className="border-2">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
-                  <Avatar className="h-10 w-10">
+                  <Avatar className="h-12 w-12">
                     <AvatarImage src={rating.profiles?.profile_image || ""} />
-                    <AvatarFallback className="bg-primary/10 text-primary">
+                    <AvatarFallback className="bg-primary/10 text-primary text-lg">
                       {rating.profiles?.full_name?.charAt(0) || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">{rating.profiles?.full_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(rating.created_at), "MMM d, yyyy")}
-                        </p>
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="font-semibold text-base">{rating.profiles?.full_name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {renderStars(rating.rating)}
+                          <span className="text-sm text-muted-foreground">
+                            {format(new Date(rating.created_at), "MMM d, yyyy")}
+                          </span>
+                        </div>
                       </div>
-                      {renderStars(rating.rating)}
                     </div>
                     {rating.comment && (
-                      <p className="text-sm text-muted-foreground">{rating.comment}</p>
+                      <p className="text-sm leading-relaxed text-foreground bg-muted/50 p-3 rounded-md">
+                        {rating.comment}
+                      </p>
                     )}
                   </div>
                 </div>
