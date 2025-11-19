@@ -42,10 +42,10 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
   const loadRatings = async () => {
     // Load all ratings with client profile info
     const { data: ratingsData } = await supabase
-      .from("ratings" as any)
+      .from("ratings")
       .select(`
         *,
-        profiles!client_id (
+        client:profiles!ratings_client_id_fkey (
           full_name,
           profile_image
         )
@@ -54,17 +54,22 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
       .order("created_at", { ascending: false });
 
     if (ratingsData) {
-      setRatings(ratingsData as any);
+      const formattedRatings = ratingsData.map((r: any) => ({
+        ...r,
+        profiles: r.client
+      }));
+      
+      setRatings(formattedRatings as any);
       
       // Calculate average
       if (ratingsData.length > 0) {
-        const avg = ratingsData.reduce((sum: number, r: any) => sum + r.rating, 0) / ratingsData.length;
+        const avg = ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length;
         setAverageRating(avg);
       }
 
       // Check if current user has already rated
       if (currentUserId) {
-        const userRatingData: any = ratingsData.find((r: any) => r.client_id === currentUserId);
+        const userRatingData = ratingsData.find((r) => r.client_id === currentUserId);
         if (userRatingData) {
           setUserRating(userRatingData.rating);
           setUserComment(userRatingData.comment || "");
@@ -89,7 +94,7 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
       if (existingRatingId) {
         // Update existing rating
         const { error } = await supabase
-          .from("ratings" as any)
+          .from("ratings")
           .update(ratingData)
           .eq("id", existingRatingId);
 
@@ -98,7 +103,7 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
       } else {
         // Insert new rating
         const { error } = await supabase
-          .from("ratings" as any)
+          .from("ratings")
           .insert([ratingData]);
 
         if (error) throw error;

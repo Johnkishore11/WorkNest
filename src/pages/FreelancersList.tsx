@@ -5,7 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Mail, DollarSign } from "lucide-react";
+import { Loader2, ArrowLeft, Mail, DollarSign, Star } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface Freelancer {
@@ -18,6 +18,8 @@ interface Freelancer {
     bio: string;
     profile_image: string;
   };
+  averageRating?: number;
+  ratingCount?: number;
 }
 
 export default function FreelancersList() {
@@ -56,7 +58,30 @@ export default function FreelancersList() {
       `)
       .eq("domain_id", domainId);
 
-    setFreelancers(freelancersData || []);
+    // Load ratings for each freelancer
+    if (freelancersData) {
+      const freelancersWithRatings = await Promise.all(
+        freelancersData.map(async (freelancer) => {
+          const { data: ratingsData } = await supabase
+            .from("ratings")
+            .select("rating")
+            .eq("freelancer_id", freelancer.id);
+
+          const averageRating = ratingsData && ratingsData.length > 0
+            ? ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length
+            : 0;
+
+          return {
+            ...freelancer,
+            averageRating,
+            ratingCount: ratingsData?.length || 0,
+          };
+        })
+      );
+
+      setFreelancers(freelancersWithRatings as any);
+    }
+
     setIsLoading(false);
   };
 
@@ -114,6 +139,17 @@ export default function FreelancersList() {
                       <CardDescription className="mt-2 line-clamp-2">
                         {freelancer.profiles.bio || "No bio provided"}
                       </CardDescription>
+                      <div className="flex items-center gap-3 mt-3">
+                        {freelancer.ratingCount && freelancer.ratingCount > 0 ? (
+                          <div className="flex items-center gap-1">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="font-semibold">{freelancer.averageRating?.toFixed(1)}</span>
+                            <span className="text-sm text-muted-foreground">({freelancer.ratingCount})</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No ratings yet</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
