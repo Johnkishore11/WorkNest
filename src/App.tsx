@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import FreelancersList from "./pages/FreelancersList";
 import FreelancerProfile from "./pages/FreelancerProfile";
 import Contact from "./pages/Contact";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/freelancers/:domainId" element={<ProtectedRoute><FreelancersList /></ProtectedRoute>} />
           <Route path="/freelancer/:userId" element={<ProtectedRoute><FreelancerProfile /></ProtectedRoute>} />
           <Route path="/contact/:userId" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
