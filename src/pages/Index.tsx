@@ -5,37 +5,25 @@ import { useNavigate } from "react-router-dom";
 import { Search, Briefcase, MessageSquare, TrendingUp } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/dashboard");
-      }
-    };
-
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        navigate("/dashboard");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    if (!loading && user) {
+      navigate("/dashboard");
+    }
+  }, [user, loading, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-        <div 
+        <div
           className="absolute inset-0 z-0"
           style={{
             backgroundImage: `url(${heroBg})`,
@@ -45,7 +33,7 @@ const Index = () => {
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/95 via-primary/90 to-accent/90" />
         </div>
-        
+
         <div className="container mx-auto px-4 py-32 relative z-10">
           <div className="max-w-5xl mx-auto text-center text-white">
             <div className="inline-block mb-6 px-6 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-700">
@@ -61,15 +49,15 @@ const Index = () => {
               Connect with top-tier professionals across 50+ domains. Build exceptional projects with the world's best talent.
             </p>
             <div className="flex flex-col sm:flex-row gap-5 justify-center animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 onClick={() => navigate("/auth")}
                 className="bg-white text-primary hover:bg-white/95 text-lg px-12 py-7 shadow-2xl hover:shadow-white/30 transition-all hover:scale-105 font-semibold"
               >
                 Start Hiring Now
               </Button>
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 variant="outline"
                 onClick={() => navigate("/auth")}
                 className="bg-white/5 text-white border-2 border-white/40 hover:bg-white/15 hover:border-white/60 text-lg px-12 py-7 backdrop-blur-md font-semibold"
@@ -77,7 +65,7 @@ const Index = () => {
                 Join as Freelancer
               </Button>
             </div>
-            
+
             {/* Stats */}
             <div className="grid grid-cols-3 gap-8 mt-20 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
               <div className="text-center">
@@ -175,8 +163,8 @@ const Index = () => {
             <p className="text-lg md:text-xl mb-10 text-white/90 max-w-2xl mx-auto">
               Join 10,000+ professionals who trust WorkNest to build exceptional projects
             </p>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               onClick={() => navigate("/auth")}
               className="bg-white text-primary hover:bg-white/95 px-12 py-7 text-lg font-semibold shadow-xl hover:shadow-2xl transition-all hover:scale-105"
             >

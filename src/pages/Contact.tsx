@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,65 +14,57 @@ import { ArrowLeft, Send } from "lucide-react";
 export default function Contact() {
   const { userId: receiverId } = useParams();
   const navigate = useNavigate();
+  const { user: currentUser, loading: authLoading } = useAuth();
   const [receiverName, setReceiverName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadData = async () => {
-      // Get current user
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-      setCurrentUserId(session.user.id);
+    // Check auth
+    if (!authLoading && !currentUser) {
+      navigate("/auth");
+    }
 
+    if (receiverId) {
+      loadData();
+    }
+  }, [receiverId, authLoading, currentUser, navigate]);
+
+  const loadData = async () => {
+    try {
       // Load receiver's name
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", receiverId)
-        .single();
-
+      const { data } = await api.get(`/users/${receiverId}`);
       if (data) {
         setReceiverName(data.full_name);
       }
-    };
-
-    loadData();
-  }, [receiverId, navigate]);
+    } catch (error) {
+      console.error("Error loading user:", error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!currentUserId) return;
+    if (!currentUser) return;
 
     setIsLoading(true);
     const formData = new FormData(e.currentTarget);
+    const subject = formData.get("subject") as string;
+    const message = formData.get("message") as string;
 
-    // Get freelancer profile ID if contacting a freelancer
-    const { data: freelancerData } = await supabase
-      .from("freelancer_profiles")
-      .select("id")
-      .eq("user_id", receiverId)
-      .single();
+    try {
+      await api.post('/messages', {
+        receiverId: receiverId,
+        message: message, // Note: backend expects 'message', subject might be part of message content or ignored if not in schema
+        subject: subject // If I updated backend schema to include subject, otherwise I should prepend it to message
+      });
 
-    const { error } = await supabase.from("messages").insert([{
-      sender_id: currentUserId,
-      receiver_id: receiverId as string,
-      freelancer_profile_id: freelancerData?.id,
-      subject: formData.get("subject") as string,
-      message: formData.get("message") as string,
-    }]);
-
-    if (error) {
-      toast.error("Failed to send message");
-    } else {
       toast.success("Message sent successfully!");
       navigate(-1);
+    } catch (error) {
+      toast.error("Failed to send message");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +15,9 @@ import { useToast } from "@/hooks/use-toast";
 export default function Profile() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState({
     full_name: "",
     bio: "",
@@ -24,27 +25,20 @@ export default function Profile() {
   });
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    if (!authLoading) {
+      if (!user) {
+        navigate("/auth");
+      } else {
+        loadProfile();
+      }
+    }
+  }, [user, authLoading, navigate]);
 
   const loadProfile = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
+      if (!user) return;
 
-      setUserId(session.user.id);
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .single();
-
-      if (error) throw error;
+      const { data } = await api.get(`/users/${user._id}`);
 
       if (data) {
         setProfile({
@@ -66,21 +60,15 @@ export default function Profile() {
   };
 
   const handleSave = async () => {
-    if (!userId) return;
+    if (!user) return;
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: profile.full_name,
-          bio: profile.bio,
-          profile_image: profile.profile_image,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-
-      if (error) throw error;
+      await api.put(`/users/${user._id}`, {
+        full_name: profile.full_name,
+        bio: profile.bio,
+        profile_image: profile.profile_image,
+      });
 
       toast({
         title: "Success",
@@ -98,7 +86,7 @@ export default function Profile() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />

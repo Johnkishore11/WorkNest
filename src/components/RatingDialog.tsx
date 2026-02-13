@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
 import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,36 +50,21 @@ export function RatingDialog({
     try {
       const ratingData = {
         freelancer_id: freelancerId,
-        client_id: currentUserId,
         rating: rating,
         comment: comment.trim() || null,
       };
 
-      if (existingRatingId) {
-        // Update existing rating
-        const { error } = await supabase
-          .from("ratings")
-          .update(ratingData)
-          .eq("id", existingRatingId);
+      // api.post('/ratings') handles both create and update logic based on existing rating check in backend
+      await api.post('/ratings', ratingData);
 
-        if (error) throw error;
-        toast({ title: "Rating updated successfully!" });
-      } else {
-        // Insert new rating
-        const { error } = await supabase
-          .from("ratings")
-          .insert([ratingData]);
-
-        if (error) throw error;
-        toast({ title: "Rating submitted successfully!" });
-      }
+      toast({ title: "Rating submitted successfully!" });
 
       setOpen(false);
       onRatingSubmitted();
     } catch (error: any) {
       toast({
         title: "Failed to submit rating",
-        description: error.message,
+        description: error.response?.data?.message || "Something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -93,11 +78,10 @@ export function RatingDialog({
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`h-8 w-8 cursor-pointer transition-all hover:scale-110 ${
-              star <= currentRating
+            className={`h-8 w-8 cursor-pointer transition-all hover:scale-110 ${star <= currentRating
                 ? "fill-yellow-400 text-yellow-400"
                 : "fill-muted text-muted hover:fill-yellow-200 hover:text-yellow-200"
-            }`}
+              }`}
             onClick={() => setRating(star)}
           />
         ))}

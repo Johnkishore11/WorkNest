@@ -1,8 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
+import { useAuth } from "@/context/AuthContext";
+import api from "@/lib/api";
 import { LogOut, Mail, User as UserIcon, Settings } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -17,58 +17,45 @@ import {
 
 export const Navbar = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string>("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadUnreadCount(session.user.id);
-        loadProfile(session.user.id);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          loadUnreadCount(session.user.id);
-          loadProfile(session.user.id);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
+    if (user) {
+      setFullName(user.full_name);
+      // If the user object from context doesn't have profile_image, we might need to fetch it.
+      // Assuming for now user object has it or we fetch it.
+      // Let's fetch fresh profile data to be sure.
+      loadProfile(user._id);
+      loadUnreadCount();
+    }
+  }, [user]);
 
   const loadProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("profile_image, full_name")
-      .eq("id", userId)
-      .single();
-    
-    if (data) {
-      setProfileImage(data.profile_image);
-      setFullName(data.full_name);
+    try {
+      const { data } = await api.get(`/users/${userId}`);
+      if (data) {
+        setProfileImage(data.profile_image);
+        setFullName(data.full_name);
+      }
+    } catch (error) {
+      console.error("Failed to load profile", error);
     }
   };
 
-  const loadUnreadCount = async (userId: string) => {
-    const { count } = await supabase
-      .from("messages")
-      .select("*", { count: "exact", head: true })
-      .eq("receiver_id", userId)
-      .eq("read", false);
-    
-    setUnreadCount(count || 0);
+  const loadUnreadCount = async () => {
+    try {
+      const { data } = await api.get('/messages/unread');
+      setUnreadCount(data.count || 0);
+    } catch (error) {
+      console.error("Failed to load unread count", error);
+    }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  const handleLogout = () => {
+    logout();
     navigate("/");
   };
 
@@ -78,28 +65,28 @@ export const Navbar = () => {
         <Link to={user ? "/dashboard" : "/"} className="text-2xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent hover:opacity-80 transition-opacity">
           WorkNest
         </Link>
-        
+
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => navigate("/messages")}
                 className="relative hover:bg-primary/10"
               >
                 <Mail className="h-4 w-4 mr-2" />
                 Messages
                 {unreadCount > 0 && (
-                  <Badge 
-                    variant="destructive" 
+                  <Badge
+                    variant="destructive"
                     className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
                   >
                     {unreadCount}
                   </Badge>
                 )}
               </Button>
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="relative h-10 w-10 rounded-full">

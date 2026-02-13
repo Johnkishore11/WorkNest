@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
@@ -15,12 +15,12 @@ interface RatingSectionProps {
 }
 
 interface Rating {
-  id: string;
+  _id: string; // MongoDB _id
   rating: number;
   comment: string | null;
-  created_at: string;
-  client_id: string;
-  profiles: {
+  createdAt: string; // MongoDB createdAt
+  client: {
+    _id: string;
     full_name: string;
     profile_image: string | null;
   };
@@ -40,42 +40,31 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
   }, [freelancerId, currentUserId]);
 
   const loadRatings = async () => {
-    // Load all ratings with client profile info
-    const { data: ratingsData } = await supabase
-      .from("ratings")
-      .select(`
-        *,
-        client:profiles!ratings_client_id_fkey (
-          full_name,
-          profile_image
-        )
-      `)
-      .eq("freelancer_id", freelancerId)
-      .order("created_at", { ascending: false });
+    try {
+      // Load all ratings with client profile info
+      const { data: ratingsData } = await api.get(`/ratings/${freelancerId}`);
 
-    if (ratingsData) {
-      const formattedRatings = ratingsData.map((r: any) => ({
-        ...r,
-        profiles: r.client
-      }));
-      
-      setRatings(formattedRatings as any);
-      
-      // Calculate average
-      if (ratingsData.length > 0) {
-        const avg = ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length;
-        setAverageRating(avg);
-      }
+      if (ratingsData) {
+        setRatings(ratingsData);
 
-      // Check if current user has already rated
-      if (currentUserId) {
-        const userRatingData = ratingsData.find((r) => r.client_id === currentUserId);
-        if (userRatingData) {
-          setUserRating(userRatingData.rating);
-          setUserComment(userRatingData.comment || "");
-          setExistingRatingId(userRatingData.id);
+        // Calculate average
+        if (ratingsData.length > 0) {
+          const avg = ratingsData.reduce((sum: number, r: Rating) => sum + r.rating, 0) / ratingsData.length;
+          setAverageRating(avg);
+        }
+
+        // Check if current user has already rated
+        if (currentUserId) {
+          const userRatingData = ratingsData.find((r: Rating) => r.client._id === currentUserId);
+          if (userRatingData) {
+            setUserRating(userRatingData.rating);
+            setUserComment(userRatingData.comment || "");
+            setExistingRatingId(userRatingData._id);
+          }
         }
       }
+    } catch (error) {
+      console.error("Error loading ratings:", error);
     }
   };
 
@@ -86,35 +75,19 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
     try {
       const ratingData = {
         freelancer_id: freelancerId,
-        client_id: currentUserId,
         rating: userRating,
         comment: userComment.trim() || null,
       };
 
-      if (existingRatingId) {
-        // Update existing rating
-        const { error } = await supabase
-          .from("ratings")
-          .update(ratingData)
-          .eq("id", existingRatingId);
+      // api.post('/ratings') handles both create and update logic based on existing rating check in backend
+      await api.post('/ratings', ratingData);
 
-        if (error) throw error;
-        toast({ title: "Rating updated successfully!" });
-      } else {
-        // Insert new rating
-        const { error } = await supabase
-          .from("ratings")
-          .insert([ratingData]);
-
-        if (error) throw error;
-        toast({ title: "Rating submitted successfully!" });
-      }
-
+      toast({ title: "Rating submitted successfully!" });
       await loadRatings();
     } catch (error: any) {
       toast({
         title: "Error submitting rating",
-        description: error.message,
+        description: error.response?.data?.message || "Something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -128,11 +101,10 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`h-5 w-5 ${
-              star <= rating
+            className={`h-5 w-5 ${star <= rating
                 ? "fill-yellow-400 text-yellow-400"
                 : "fill-muted text-muted"
-            } ${interactive ? "cursor-pointer hover:scale-110 transition-transform" : ""}`}
+              } ${interactive ? "cursor-pointer hover:scale-110 transition-transform" : ""}`}
             onClick={() => interactive && onStarClick?.(star)}
           />
         ))}
@@ -196,23 +168,23 @@ export const RatingSection = ({ freelancerId, currentUserId, userRole }: RatingS
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Client Reviews</h3>
           {ratings.map((rating) => (
-            <Card key={rating.id} className="border-2">
+            <Card key={rating._id} className="border-2">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={rating.profiles?.profile_image || ""} />
+                    <AvatarImage src={rating.client?.profile_image || ""} />
                     <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                      {rating.profiles?.full_name?.charAt(0) || "U"}
+                      {rating.client?.full_name?.charAt(0) || "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
-                        <p className="font-semibold text-base">{rating.profiles?.full_name}</p>
+                        <p className="font-semibold text-base">{rating.client?.full_name}</p>
                         <div className="flex items-center gap-2 mt-1">
                           {renderStars(rating.rating)}
                           <span className="text-sm text-muted-foreground">
-                            {format(new Date(rating.created_at), "MMM d, yyyy")}
+                            {format(new Date(rating.createdAt), "MMM d, yyyy")}
                           </span>
                         </div>
                       </div>

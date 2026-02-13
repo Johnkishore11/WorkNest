@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
@@ -7,11 +7,10 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { toast } from "sonner";
-import { 
-  Briefcase, 
-  Plus, 
-  Trash2, 
-  Eye, 
+import {
+  Briefcase,
+  Plus,
+  Trash2,
   DollarSign,
   Award,
   CheckCircle2,
@@ -31,12 +30,12 @@ interface FreelancerDashboardProps {
 }
 
 interface Domain {
-  id: string;
+  _id: string;
   name: string;
 }
 
 interface Portfolio {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   project_link: string;
@@ -63,47 +62,37 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
   }, [userId]);
 
   const loadData = async () => {
-    // Load profile
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+    try {
+      // Load profile (user data)
+      const { data: profileData } = await api.get(`/users/${userId}`);
+      setProfile(profileData);
 
-    setProfile(profileData);
-
-    // Load freelancer profile
-    const { data: freelancerData } = await supabase
-      .from("freelancer_profiles")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
-
-    setFreelancerProfile(freelancerData);
-
-    // Load domains
-    const { data: domainsData } = await supabase.from("domains").select("*");
-    setDomains(domainsData || []);
-
-    // Load portfolios and ratings
-    if (freelancerData) {
-      const { data: portfoliosData } = await supabase
-        .from("portfolios")
-        .select("*")
-        .eq("freelancer_id", freelancerData.id);
-      setPortfolios(portfoliosData || []);
-
-      // Load ratings
-      const { data: ratingsData } = await supabase
-        .from("ratings")
-        .select("rating")
-        .eq("freelancer_id", freelancerData.id);
-
-      if (ratingsData && ratingsData.length > 0) {
-        const avg = ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length;
-        setAverageRating(avg);
-        setTotalRatings(ratingsData.length);
+      // Load freelancer profile
+      try {
+        const { data: freelancerData } = await api.get('/freelancers/me');
+        setFreelancerProfile(freelancerData);
+        if (freelancerData) setIsAvailable(freelancerData.available);
+      } catch (err) {
+        // Might not exist yet
+        console.log("No freelancer profile found yet");
       }
+
+      // Load domains
+      const { data: domainsData } = await api.get('/domains');
+      setDomains(domainsData || []);
+
+      // Load portfolios
+      try {
+        const { data: portfoliosData } = await api.get('/freelancers/portfolio');
+        setPortfolios(portfoliosData || []);
+      } catch (err) {
+        console.log("Failed to load portfolios");
+      }
+
+      // TODO: Load ratings (Not implemented in backend yet)
+
+    } catch (error) {
+      console.error("Error loading data", error);
     }
   };
 
@@ -112,35 +101,31 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
     if (!file) return;
 
     setUploadingProfileImage(true);
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}/${Math.random()}.${fileExt}`;
+    const formData = new FormData();
+    formData.append('image', file);
 
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(fileName, file, { upsert: true });
+    try {
+      const { data: imageUrl } = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
 
-    if (uploadError) {
-      toast.error("Error uploading image");
-      setUploadingProfileImage(false);
-      return;
-    }
+      // Update user profile with new image URL
+      // We need an endpoint for this or update the user model directly via /users/:id
+      // Assuming the image URL returned is relative path, we need to prepend base URL if needed or handle in backend
+      // My backend returns relative path /uploads/filename.ext
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(fileName);
+      const fullImageUrl = `http://localhost:5000${imageUrl}`; // Hardcoded for now, should be from config
 
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ profile_image: publicUrl })
-      .eq('id', userId);
+      await api.put(`/users/${userId}`, { profile_image: fullImageUrl });
 
-    if (updateError) {
-      toast.error("Error updating profile");
-    } else {
       toast.success("Profile image updated successfully");
       loadData();
+    } catch (error) {
+      toast.error("Error uploading image");
+      console.error(error);
+    } finally {
+      setUploadingProfileImage(false);
     }
-    setUploadingProfileImage(false);
   };
 
   const handlePortfolioImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,85 +133,70 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
     if (!file) return;
 
     setUploadingPortfolioImage(true);
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}/${Math.random()}.${fileExt}`;
+    const formData = new FormData();
+    formData.append('image', file);
 
-    const { error: uploadError } = await supabase.storage
-      .from('portfolio-images')
-      .upload(fileName, file);
+    try {
+      const { data: imageUrl } = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
 
-    if (uploadError) {
+      const fullImageUrl = `http://localhost:5000${imageUrl}`;
+      setPortfolioImageUrl(fullImageUrl);
+      toast.success("Image uploaded successfully");
+    } catch (error) {
       toast.error("Error uploading image");
+    } finally {
       setUploadingPortfolioImage(false);
-      return;
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('portfolio-images')
-      .getPublicUrl(fileName);
-
-    setPortfolioImageUrl(publicUrl);
-    setUploadingPortfolioImage(false);
-    toast.success("Image uploaded successfully");
   };
 
   const handleSaveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    // Update profile
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        full_name: formData.get("fullName") as string,
-        bio: formData.get("bio") as string,
-      })
-      .eq("id", userId);
+    try {
+      // Update user profile
+      await api.put(`/users/${userId}`, {
+        full_name: formData.get("fullName"),
+        bio: formData.get("bio"),
+      });
 
-    if (profileError) {
+      // Update/Create freelancer profile
+      const hourlyRateValue = formData.get("hourlyRate");
+
+      await api.post('/freelancers', {
+        domain_id: formData.get("domainId"),
+        hourly_rate: hourlyRateValue ? parseFloat(hourlyRateValue as string) : null,
+        skills: freelancerProfile?.skills || [],
+        available: isAvailable
+      });
+
+      toast.success("Profile updated successfully!");
+      setIsEditingProfile(false);
+      loadData();
+    } catch (error) {
       toast.error("Error updating profile");
-      return;
+      console.error(error);
     }
-
-    // Create or update freelancer profile
-    const hourlyRateValue = formData.get("hourlyRate");
-    const domainIdValue = formData.get("domainId");
-    
-    const freelancerData = {
-      user_id: userId,
-      domain_id: domainIdValue as string,
-      hourly_rate: hourlyRateValue ? parseFloat(hourlyRateValue as string) : null,
-      skills: freelancerProfile?.skills || [],
-    };
-
-    if (freelancerProfile) {
-      await supabase
-        .from("freelancer_profiles")
-        .update(freelancerData)
-        .eq("id", freelancerProfile.id);
-    } else {
-      await supabase.from("freelancer_profiles").insert([freelancerData]);
-    }
-
-    toast.success("Profile updated successfully!");
-    setIsEditingProfile(false);
-    loadData();
   };
 
   const addSkill = async () => {
-    if (!newSkill.trim() || !freelancerProfile) return;
+    if (!newSkill.trim()) return;
 
-    const updatedSkills = [...(freelancerProfile.skills || []), newSkill.trim()];
-    
-    const { error } = await supabase
-      .from("freelancer_profiles")
-      .update({ skills: updatedSkills })
-      .eq("id", freelancerProfile.id);
+    const updatedSkills = [...(freelancerProfile?.skills || []), newSkill.trim()];
 
-    if (!error) {
+    try {
+      await api.post('/freelancers', {
+        ...freelancerProfile,
+        skills: updatedSkills,
+        domain_id: freelancerProfile?.domain_id // Ensure other fields are kept
+      });
       setNewSkill("");
       loadData();
       toast.success("Skill added!");
+    } catch (error) {
+      toast.error("Error adding skill");
     }
   };
 
@@ -234,49 +204,47 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
     if (!freelancerProfile) return;
 
     const updatedSkills = freelancerProfile.skills.filter((s: string) => s !== skill);
-    
-    const { error } = await supabase
-      .from("freelancer_profiles")
-      .update({ skills: updatedSkills })
-      .eq("id", freelancerProfile.id);
 
-    if (!error) {
+    try {
+      await api.post('/freelancers', {
+        ...freelancerProfile,
+        skills: updatedSkills
+      });
       loadData();
       toast.success("Skill removed!");
+    } catch (error) {
+      toast.error("Error removing skill");
     }
   };
 
   const handleAddPortfolio = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!freelancerProfile) return;
-
     const formData = new FormData(e.currentTarget);
-    
-    const { error } = await supabase.from("portfolios").insert([{
-      freelancer_id: freelancerProfile.id,
-      title: formData.get("title") as string,
-      description: formData.get("description") as string,
-      project_link: formData.get("projectLink") as string,
-      image_url: portfolioImageUrl,
-    }]);
 
-    if (error) {
+    try {
+      await api.post('/freelancers/portfolio', {
+        title: formData.get("title"),
+        description: formData.get("description"),
+        project_link: formData.get("projectLink"),
+        image_url: portfolioImageUrl,
+      });
+
+      toast.success("Portfolio item added!");
+      setIsAddingPortfolio(false);
+      setPortfolioImageUrl("");
+      loadData();
+    } catch (error) {
       toast.error("Error adding portfolio item");
-      return;
     }
-
-    toast.success("Portfolio item added!");
-    setIsAddingPortfolio(false);
-    setPortfolioImageUrl("");
-    loadData();
   };
 
   const deletePortfolio = async (id: string) => {
-    const { error } = await supabase.from("portfolios").delete().eq("id", id);
-
-    if (!error) {
+    try {
+      await api.delete(`/freelancers/portfolio/${id}`);
       toast.success("Portfolio item deleted!");
       loadData();
+    } catch (error) {
+      toast.error("Error deleting portfolio item");
     }
   };
 
@@ -313,7 +281,15 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                   {isAvailable ? "Open to work" : "Unavailable"}
                 </span>
               </div>
-              <Switch checked={isAvailable} onCheckedChange={setIsAvailable} />
+              <Switch checked={isAvailable} onCheckedChange={async (val) => {
+                setIsAvailable(val);
+                // Update availability immediately
+                try {
+                  await api.post('/freelancers', { ...freelancerProfile, available: val });
+                } catch (e) {
+                  toast.error("Failed to update status");
+                }
+              }} />
             </div>
           </div>
 
@@ -328,8 +304,8 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                       {profile?.full_name?.charAt(0) || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <label 
-                    htmlFor="profile-image-upload" 
+                  <label
+                    htmlFor="profile-image-upload"
                     className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   >
                     <Camera className="h-10 w-10 text-white" />
@@ -480,7 +456,7 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                         </SelectTrigger>
                         <SelectContent>
                           {domains.map((domain) => (
-                            <SelectItem key={domain.id} value={domain.id}>
+                            <SelectItem key={domain._id} value={domain._id}>
                               {domain.name}
                             </SelectItem>
                           ))}
@@ -524,7 +500,7 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                         {profile?.bio || "No bio added yet. Add one to attract more clients!"}
                       </p>
                     </div>
-                    
+
                     {freelancerProfile && (
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="bg-primary/5 p-4 rounded-lg border border-primary/20">
@@ -537,7 +513,7 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                         <div className="bg-accent/5 p-4 rounded-lg border border-accent/20">
                           <p className="text-sm font-medium text-muted-foreground mb-1">Domain</p>
                           <p className="text-lg font-semibold text-accent">
-                            {domains.find(d => d.id === freelancerProfile.domain_id)?.name || "Not set"}
+                            {domains.find(d => d._id === freelancerProfile.domain)?.name || "Not set"}
                           </p>
                         </div>
                       </div>
@@ -560,9 +536,9 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                 <div className="flex flex-wrap gap-2 min-h-[60px]">
                   {freelancerProfile?.skills?.length > 0 ? (
                     freelancerProfile.skills.map((skill: string) => (
-                      <Badge 
-                        key={skill} 
-                        variant="secondary" 
+                      <Badge
+                        key={skill}
+                        variant="secondary"
                         className="gap-2 py-1.5 px-3 text-sm hover:bg-primary/10 transition-colors"
                       >
                         {skill}
@@ -645,9 +621,9 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                           {uploadingPortfolioImage ? "Uploading..." : "Upload Image"}
                         </Button>
                         {portfolioImageUrl && (
-                          <img 
-                            src={portfolioImageUrl} 
-                            alt="Preview" 
+                          <img
+                            src={portfolioImageUrl}
+                            alt="Preview"
                             className="h-16 w-16 object-cover rounded"
                           />
                         )}
@@ -685,7 +661,7 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                     </p>
                   ) : (
                     portfolios.map((portfolio) => (
-                      <Card key={portfolio.id} className="group hover:shadow-md transition-all overflow-hidden">
+                      <Card key={portfolio._id} className="group hover:shadow-md transition-all overflow-hidden">
                         {portfolio.image_url && (
                           <div className="aspect-video overflow-hidden">
                             <img
@@ -701,7 +677,7 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => deletePortfolio(portfolio.id)}
+                              onClick={() => deletePortfolio(portfolio._id)}
                               className="h-8 w-8 p-0"
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />

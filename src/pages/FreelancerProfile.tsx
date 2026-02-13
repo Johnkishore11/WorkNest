@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,81 +14,51 @@ import { RatingDialog } from "@/components/RatingDialog";
 export default function FreelancerProfile() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const { user: currentUser, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [freelancerProfile, setFreelancerProfile] = useState<any>(null);
   const [portfolios, setPortfolios] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [userRating, setUserRating] = useState<any>(null);
 
   useEffect(() => {
-    loadCurrentUser();
-  }, []);
-
-  const loadCurrentUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      setCurrentUser(session.user);
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", session.user.id)
-        .single();
-      setCurrentUserRole(profileData?.role || null);
-    }
-  };
-
-  useEffect(() => {
-    if (currentUserRole !== null) {
+    // Wait for auth to be ready before loading data
+    if (!authLoading) {
       loadData();
     }
-  }, [userId, currentUserRole]);
+  }, [userId, authLoading, currentUser]);
 
   const loadData = async () => {
-    // Load profile
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+    try {
+      // Load freelancer profile (which includes user details)
+      const { data: freelancerData } = await api.get(`/freelancers/user/${userId}`);
 
-    setProfile(profileData);
+      if (freelancerData) {
+        setFreelancerProfile(freelancerData);
+        setProfile(freelancerData.user);
 
-    // Load freelancer profile
-    const { data: freelancerData } = await supabase
-      .from("freelancer_profiles")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
+        // Load portfolios
+        const { data: portfoliosData } = await api.get(`/freelancers/portfolio/${freelancerData._id}`);
+        setPortfolios(portfoliosData || []);
 
-    setFreelancerProfile(freelancerData);
-
-    // Load portfolios
-    if (freelancerData) {
-      const { data: portfoliosData } = await supabase
-        .from("portfolios")
-        .select("*")
-        .eq("freelancer_id", freelancerData.id);
-      setPortfolios(portfoliosData || []);
-
-      // Load user's existing rating if they're a client
-      if (currentUser && currentUserRole === "client") {
-        const { data: ratingData } = await supabase
-          .from("ratings")
-          .select("*")
-          .eq("freelancer_id", freelancerData.id)
-          .eq("client_id", currentUser.id)
-          .single();
-        
-        setUserRating(ratingData || null);
+        // Load user's existing rating if they're a client
+        if (currentUser && currentUser.role === "client") {
+          try {
+            const { data: ratingData } = await api.get(`/ratings/check/${freelancerData._id}`);
+            setUserRating(ratingData || null);
+          } catch (err) {
+            console.error("Error checking rating:", err);
+          }
+        }
       }
+    } catch (error) {
+      console.error("Error loading freelancer profile:", error);
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -136,13 +107,13 @@ export default function FreelancerProfile() {
                     )}
                   </div>
                   <div className="flex gap-2">
-                    {currentUserRole === "client" && currentUser && (
+                    {currentUser?.role === "client" && (
                       <RatingDialog
-                        freelancerId={freelancerProfile?.id}
-                        currentUserId={currentUser?.id}
+                        freelancerId={freelancerProfile?._id}
+                        currentUserId={currentUser?._id}
                         existingRating={userRating?.rating}
                         existingComment={userRating?.comment}
-                        existingRatingId={userRating?.id}
+                        existingRatingId={userRating?._id}
                         onRatingSubmitted={loadData}
                         trigger={
                           <Button variant="outline">
@@ -193,7 +164,7 @@ export default function FreelancerProfile() {
             ) : (
               <div className="grid gap-6 md:grid-cols-2">
                 {portfolios.map((item) => (
-                  <Card key={item.id} className="hover:shadow-lg transition-shadow overflow-hidden border-2">
+                  <Card key={item._id} className="hover:shadow-lg transition-shadow overflow-hidden border-2">
                     {item.image_url && (
                       <div className="aspect-video overflow-hidden">
                         <img
@@ -232,9 +203,9 @@ export default function FreelancerProfile() {
         {freelancerProfile && (
           <div className="mt-8">
             <RatingSection
-              freelancerId={freelancerProfile.id}
-              currentUserId={currentUser?.id || null}
-              userRole={currentUserRole}
+              freelancerId={freelancerProfile._id}
+              currentUserId={currentUser?._id || null}
+              userRole={currentUser?.role || null}
             />
           </div>
         )}

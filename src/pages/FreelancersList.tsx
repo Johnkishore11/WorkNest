@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,15 +9,15 @@ import { Loader2, ArrowLeft, Mail, DollarSign, Star } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface Freelancer {
-  id: string;
-  user_id: string;
-  hourly_rate: number;
-  skills: string[];
-  profiles: {
+  _id: string; // MongoDB _id for FreelancerProfile
+  user: {
+    _id: string; // User ID
     full_name: string;
     bio: string;
     profile_image: string;
   };
+  hourly_rate: number;
+  skills: string[];
   averageRating?: number;
   ratingCount?: number;
 }
@@ -34,55 +34,45 @@ export default function FreelancersList() {
   }, [domainId]);
 
   const loadData = async () => {
-    // Load domain info
-    const { data: domainData } = await supabase
-      .from("domains")
-      .select("name")
-      .eq("id", domainId)
-      .single();
+    try {
+      // Load domain info
+      if (domainId) {
+        const { data: domainData } = await api.get(`/domains/${domainId}`);
+        if (domainData) {
+          setDomainName(domainData.name);
+        }
+      }
 
-    if (domainData) {
-      setDomainName(domainData.name);
+      // Load freelancers
+      const { data: freelancersData } = await api.get('/freelancers', {
+        params: { domain_id: domainId }
+      });
+
+      // Load ratings for each freelancer
+      if (freelancersData) {
+        const freelancersWithRatings = await Promise.all(
+          freelancersData.map(async (freelancer: any) => {
+            const { data: ratingsData } = await api.get(`/ratings/${freelancer._id}`);
+
+            const averageRating = ratingsData && ratingsData.length > 0
+              ? ratingsData.reduce((sum: number, r: any) => sum + r.rating, 0) / ratingsData.length
+              : 0;
+
+            return {
+              ...freelancer,
+              averageRating,
+              ratingCount: ratingsData?.length || 0,
+            };
+          })
+        );
+
+        setFreelancers(freelancersWithRatings);
+      }
+    } catch (error) {
+      console.error("Error loading data:", error);
+    } finally {
+      setIsLoading(false);
     }
-
-    // Load freelancers
-    const { data: freelancersData } = await supabase
-      .from("freelancer_profiles")
-      .select(`
-        *,
-        profiles (
-          full_name,
-          bio,
-          profile_image
-        )
-      `)
-      .eq("domain_id", domainId);
-
-    // Load ratings for each freelancer
-    if (freelancersData) {
-      const freelancersWithRatings = await Promise.all(
-        freelancersData.map(async (freelancer) => {
-          const { data: ratingsData } = await supabase
-            .from("ratings")
-            .select("rating")
-            .eq("freelancer_id", freelancer.id);
-
-          const averageRating = ratingsData && ratingsData.length > 0
-            ? ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length
-            : 0;
-
-          return {
-            ...freelancer,
-            averageRating,
-            ratingCount: ratingsData?.length || 0,
-          };
-        })
-      );
-
-      setFreelancers(freelancersWithRatings as any);
-    }
-
-    setIsLoading(false);
   };
 
   if (isLoading) {
@@ -125,19 +115,19 @@ export default function FreelancersList() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2">
             {freelancers.map((freelancer) => (
-              <Card key={freelancer.id} className="hover:shadow-lg transition-shadow border-2 hover:border-primary/30">
+              <Card key={freelancer._id} className="hover:shadow-lg transition-shadow border-2 hover:border-primary/30">
                 <CardHeader>
                   <div className="flex items-start gap-4">
                     <Avatar className="h-16 w-16">
-                      <AvatarImage src={freelancer.profiles.profile_image || ""} />
+                      <AvatarImage src={freelancer.user.profile_image || ""} />
                       <AvatarFallback className="text-xl bg-primary/10 text-primary">
-                        {freelancer.profiles.full_name?.charAt(0) || "U"}
+                        {freelancer.user.full_name?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <CardTitle>{freelancer.profiles.full_name}</CardTitle>
+                      <CardTitle>{freelancer.user.full_name}</CardTitle>
                       <CardDescription className="mt-2 line-clamp-2">
-                        {freelancer.profiles.bio || "No bio provided"}
+                        {freelancer.user.bio || "No bio provided"}
                       </CardDescription>
                       <div className="flex items-center gap-3 mt-3">
                         {freelancer.ratingCount && freelancer.ratingCount > 0 ? (
@@ -177,13 +167,13 @@ export default function FreelancersList() {
                   <div className="flex gap-2 pt-4">
                     <Button
                       className="flex-1"
-                      onClick={() => navigate(`/freelancer/${freelancer.user_id}`)}
+                      onClick={() => navigate(`/freelancer/${freelancer.user._id}`)}
                     >
                       View Profile
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => navigate(`/contact/${freelancer.user_id}`)}
+                      onClick={() => navigate(`/contact/${freelancer.user._id}`)}
                     >
                       <Mail className="h-4 w-4" />
                     </Button>

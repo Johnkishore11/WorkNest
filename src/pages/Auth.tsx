@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ type UserRole = "freelancer" | "client";
 
 export default function Auth() {
   const navigate = useNavigate();
+  const { login, signup } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [role, setRole] = useState<UserRole>("freelancer");
 
@@ -25,16 +26,15 @@ export default function Auth() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      await login({ email, password });
       toast.success("Logged in successfully!");
       navigate("/dashboard");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Login failed");
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -46,43 +46,15 @@ export default function Auth() {
     const password = formData.get("password") as string;
     const fullName = formData.get("fullName") as string;
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          full_name: fullName,
-          role: role,
-        },
-      },
-    });
-
-    if (error) {
-      toast.error(error.message);
-      setIsLoading(false);
-      return;
-    }
-
-    if (data.user) {
-      // Create profile
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id: data.user.id,
-        full_name: fullName,
-        role: role,
-      });
-
-      if (profileError) {
-        toast.error("Error creating profile: " + profileError.message);
-        setIsLoading(false);
-        return;
-      }
-
+    try {
+      await signup({ email, password, full_name: fullName, role });
       toast.success("Account created successfully!");
       navigate("/dashboard");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Signup failed");
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (

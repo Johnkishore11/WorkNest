@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,19 +13,19 @@ import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Message {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  subject: string;
-  message: string;
-  read: boolean;
-  created_at: string;
+  _id: string; // MongoDB uses _id
   sender: {
+    _id: string;
     full_name: string;
   };
   receiver: {
+    _id: string;
     full_name: string;
   };
+  subject: string;
+  message: string;
+  read: boolean;
+  createdAt: string; // Mongoose uses createdAt
 }
 
 interface ConversationThread {
@@ -39,70 +40,64 @@ interface ConversationThread {
 export default function Messages() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedThread, setSelectedThread] = useState<ConversationThread | null>(null);
   const [replyText, setReplyText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    checkAuthAndLoadMessages();
-  }, []);
-
-  const checkAuthAndLoadMessages = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      navigate("/auth");
-      return;
+    if (!authLoading) {
+      if (!user) {
+        navigate("/auth");
+      } else {
+        loadMessages();
+      }
     }
+  }, [user, authLoading, navigate]);
 
-    setCurrentUserId(session.user.id);
-    await loadMessages(session.user.id);
-  };
 
-  const loadMessages = async (userId: string) => {
+  const loadMessages = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from("messages")
-      .select(`
-        *,
-        sender:profiles!messages_sender_id_fkey(full_name),
-        receiver:profiles!messages_receiver_id_fkey(full_name)
-      `)
-      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    try {
+      const { data } = await api.get("/messages");
+      setMessages(data || []);
+    } catch (error) {
       console.error("Error loading messages:", error);
       toast({
         title: "Error",
         description: "Failed to load messages",
         variant: "destructive",
       });
-    } else {
-      setMessages(data || []);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const groupMessagesByContact = (): ConversationThread[] => {
-    if (!currentUserId) return [];
+    if (!user) return [];
 
     const threadsMap = new Map<string, ConversationThread>();
 
     messages.forEach((msg) => {
-      const isReceived = msg.receiver_id === currentUserId;
-      const contactId = isReceived ? msg.sender_id : msg.receiver_id;
-      const contactName = isReceived ? msg.sender.full_name : msg.receiver.full_name;
+      // Handle MongoDB _id vs sender/receiver objects
+      // The API returns sender and receiver as populated objects
+      const senderId = msg.sender._id || (msg.sender as any);
+      const receiverId = msg.receiver._id || (msg.receiver as any);
+      const senderName = msg.sender.full_name || "Unknown";
+      const receiverName = msg.receiver.full_name || "Unknown";
+
+      const isReceived = receiverId === user._id;
+      const contactId = isReceived ? senderId : receiverId;
+      const contactName = isReceived ? senderName : receiverName;
 
       if (!threadsMap.has(contactId)) {
         threadsMap.set(contactId, {
           contactId,
           contactName,
           lastMessage: msg.message,
-          lastMessageTime: msg.created_at,
+          lastMessageTime: msg.createdAt,
           unreadCount: 0,
           messages: [],
         });
@@ -110,36 +105,42 @@ export default function Messages() {
 
       const thread = threadsMap.get(contactId)!;
       thread.messages.push(msg);
-      
+
       if (!msg.read && isReceived) {
         thread.unreadCount++;
       }
     });
 
-    return Array.from(threadsMap.values()).sort((a, b) => 
+    return Array.from(threadsMap.values()).sort((a, b) =>
       new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
     );
   };
 
   const markThreadAsRead = async (contactId: string) => {
-    if (!currentUserId) return;
+    if (!user) return;
 
-    const unreadMessages = messages.filter(
-      msg => msg.sender_id === contactId && msg.receiver_id === currentUserId && !msg.read
-    );
+    // Find unread messages from this contact
+    const unreadMessages = messages.filter(msg => {
+      const senderId = msg.sender._id || (msg.sender as any);
+      const receiverId = msg.receiver._id || (msg.receiver as any);
+      return senderId === contactId && receiverId === user._id && !msg.read;
+    });
 
-    for (const msg of unreadMessages) {
-      await supabase
-        .from("messages")
-        .update({ read: true })
-        .eq("id", msg.id);
+    try {
+      await Promise.all(unreadMessages.map(msg => api.put(`/messages/${msg._id}/read`, {})));
+
+      // Update local state
+      setMessages(messages.map(msg => {
+        const senderId = msg.sender._id || (msg.sender as any);
+        const receiverId = msg.receiver._id || (msg.receiver as any);
+        if (senderId === contactId && receiverId === user._id) {
+          return { ...msg, read: true };
+        }
+        return msg;
+      }));
+    } catch (error) {
+      console.error("Failed to mark messages as read", error);
     }
-
-    setMessages(messages.map(msg => 
-      msg.sender_id === contactId && msg.receiver_id === currentUserId 
-        ? { ...msg, read: true } 
-        : msg
-    ));
   };
 
   const handleSelectThread = (thread: ConversationThread) => {
@@ -148,32 +149,36 @@ export default function Messages() {
   };
 
   const handleSendReply = async () => {
-    if (!selectedThread || !currentUserId || !replyText.trim()) return;
+    if (!selectedThread || !user || !replyText.trim()) return;
 
     setIsSending(true);
-    const { error } = await supabase.from("messages").insert({
-      sender_id: currentUserId,
-      receiver_id: selectedThread.contactId,
-      subject: `Re: ${selectedThread.messages[0]?.subject || "Conversation"}`,
-      message: replyText,
-    });
+    try {
+      const { data: newMessage } = await api.post("/messages", {
+        receiver_id: selectedThread.contactId,
+        subject: `Re: ${selectedThread.messages[0]?.subject || "Conversation"}`,
+        message: replyText,
+      });
 
-    if (error) {
+      toast({
+        title: "Success",
+        description: "Message sent successfully",
+      });
+      setReplyText("");
+
+      // Refresh messages or manually add to state
+      await loadMessages();
+
+      // Optimistic update could be done here but loadMessages is safer for consistency
+    } catch (error) {
       console.error("Error sending reply:", error);
       toast({
         title: "Error",
         description: "Failed to send reply",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "Message sent successfully",
-      });
-      setReplyText("");
-      await loadMessages(currentUserId);
+    } finally {
+      setIsSending(false);
     }
-    setIsSending(false);
   };
 
   const getInitials = (name: string) => {
@@ -201,7 +206,7 @@ export default function Messages() {
 
   const conversationThreads = groupMessagesByContact();
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -217,8 +222,8 @@ export default function Messages() {
       <Navbar />
       <div className="container mx-auto px-4 py-6 max-w-7xl">
         <div className="mb-6">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={() => navigate("/dashboard")}
             className="mb-4 hover:bg-primary/10"
           >
@@ -271,11 +276,10 @@ export default function Messages() {
                     <div
                       key={thread.contactId}
                       onClick={() => handleSelectThread(thread)}
-                      className={`p-4 cursor-pointer transition-all hover:bg-muted/50 ${
-                        selectedThread?.contactId === thread.contactId 
-                          ? "bg-primary/5 border-l-4 border-primary" 
-                          : ""
-                      }`}
+                      className={`p-4 cursor-pointer transition-all hover:bg-muted/50 ${selectedThread?.contactId === thread.contactId
+                        ? "bg-primary/5 border-l-4 border-primary"
+                        : ""
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <Avatar className="h-12 w-12 border-2 border-primary/20">
@@ -292,9 +296,8 @@ export default function Messages() {
                               {formatTime(thread.lastMessageTime)}
                             </span>
                           </div>
-                          <p className={`text-sm line-clamp-2 ${
-                            thread.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground"
-                          }`}>
+                          <p className={`text-sm line-clamp-2 ${thread.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground"
+                            }`}>
                             {thread.lastMessage}
                           </p>
                           {thread.unreadCount > 0 && (
@@ -336,49 +339,45 @@ export default function Messages() {
                 <ScrollArea className="flex-1 p-6">
                   <div className="space-y-4">
                     {selectedThread.messages
-                      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                       .map((msg) => {
-                        const isSent = msg.sender_id === currentUserId;
+                        const senderId = msg.sender._id || (msg.sender as any);
+                        const isSent = senderId === user?._id;
                         return (
                           <div
-                            key={msg.id}
+                            key={msg._id}
                             className={`flex gap-3 animate-fade-in ${isSent ? "flex-row-reverse" : ""}`}
                           >
                             <Avatar className="h-8 w-8 border-2 border-primary/10 flex-shrink-0">
-                              <AvatarFallback className={`text-xs font-semibold ${
-                                isSent 
-                                  ? "bg-gradient-to-br from-primary to-accent text-white" 
-                                  : "bg-muted text-muted-foreground"
-                              }`}>
+                              <AvatarFallback className={`text-xs font-semibold ${isSent
+                                ? "bg-gradient-to-br from-primary to-accent text-white"
+                                : "bg-muted text-muted-foreground"
+                                }`}>
                                 {getInitials(isSent ? "You" : msg.sender.full_name)}
                               </AvatarFallback>
                             </Avatar>
                             <div className={`flex-1 ${isSent ? "flex flex-col items-end" : ""}`}>
                               <div className="flex items-baseline gap-2 mb-1">
-                                <span className={`text-xs font-medium ${
-                                  isSent ? "text-primary" : "text-muted-foreground"
-                                }`}>
+                                <span className={`text-xs font-medium ${isSent ? "text-primary" : "text-muted-foreground"
+                                  }`}>
                                   {isSent ? "You" : msg.sender.full_name}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
-                                  {formatTime(msg.created_at)}
+                                  {formatTime(msg.createdAt)}
                                 </span>
                               </div>
-                              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                                isSent 
-                                  ? "bg-gradient-to-r from-primary to-accent text-primary-foreground" 
-                                  : "bg-muted"
-                              }`}>
+                              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${isSent
+                                ? "bg-gradient-to-r from-primary to-accent text-primary-foreground"
+                                : "bg-muted"
+                                }`}>
                                 {msg.subject && !msg.subject.startsWith("Re:") && (
-                                  <p className={`font-semibold text-sm mb-1 ${
-                                    isSent ? "text-primary-foreground/90" : "text-foreground"
-                                  }`}>
+                                  <p className={`font-semibold text-sm mb-1 ${isSent ? "text-primary-foreground/90" : "text-foreground"
+                                    }`}>
                                     {msg.subject}
                                   </p>
                                 )}
-                                <p className={`text-sm whitespace-pre-wrap ${
-                                  isSent ? "text-primary-foreground" : "text-foreground"
-                                }`}>
+                                <p className={`text-sm whitespace-pre-wrap ${isSent ? "text-primary-foreground" : "text-foreground"
+                                  }`}>
                                   {msg.message}
                                 </p>
                               </div>
@@ -404,7 +403,7 @@ export default function Messages() {
                       }}
                       className="min-h-[80px] resize-none border-2 focus:border-primary"
                     />
-                    <Button 
+                    <Button
                       onClick={handleSendReply}
                       disabled={isSending || !replyText.trim()}
                       className="bg-gradient-to-r from-primary to-accent hover:opacity-90 self-end"
