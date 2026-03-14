@@ -25,6 +25,10 @@ const userSchema = new mongoose.Schema({
     profile_image: {
         type: String,
     },
+    saved_freelancers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    }],
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

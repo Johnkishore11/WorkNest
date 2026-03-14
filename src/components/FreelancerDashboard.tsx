@@ -18,7 +18,8 @@ import {
   Upload,
   Camera,
   ExternalLink,
-  Star
+  Star,
+  Loader2
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Switch } from "./ui/switch";
@@ -89,8 +90,6 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
         console.log("Failed to load portfolios");
       }
 
-      // TODO: Load ratings (Not implemented in backend yet)
-
     } catch (error) {
       console.error("Error loading data", error);
     }
@@ -109,12 +108,7 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      // Update user profile with new image URL
-      // We need an endpoint for this or update the user model directly via /users/:id
-      // Assuming the image URL returned is relative path, we need to prepend base URL if needed or handle in backend
-      // My backend returns relative path /uploads/filename.ext
-
-      const fullImageUrl = `http://localhost:5000${imageUrl}`; // Hardcoded for now, should be from config
+      const fullImageUrl = `http://localhost:5000${imageUrl}`;
 
       await api.put(`/users/${userId}`, { profile_image: fullImageUrl });
 
@@ -190,7 +184,7 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
       await api.post('/freelancers', {
         ...freelancerProfile,
         skills: updatedSkills,
-        domain_id: freelancerProfile?.domain_id // Ensure other fields are kept
+        domain_id: freelancerProfile?.domain_id
       });
       setNewSkill("");
       loadData();
@@ -263,451 +257,445 @@ export default function FreelancerDashboard({ userId }: FreelancerDashboardProps
   const profileCompletion = calculateProfileCompletion();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
-        <div className="mb-10">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Freelancer Dashboard
-              </h1>
-              <p className="text-lg text-muted-foreground">Manage your professional presence and showcase your work</p>
-            </div>
-            <div className="flex items-center gap-3 bg-card p-4 rounded-xl shadow-sm border-2 border-border hover:border-primary/50 transition-all">
-              <div className="flex flex-col items-end">
-                <span className="text-sm font-semibold">Availability Status</span>
-                <span className="text-xs text-muted-foreground">
-                  {isAvailable ? "Open to work" : "Unavailable"}
-                </span>
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 pb-20">
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
+
+        {/* Top Navigation / Header */}
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
+          <div className="flex-1">
+            <Badge variant="outline" className="mb-4 px-3 py-1 bg-primary/5 text-primary border-primary/10 font-bold tracking-tight">
+              Talent Workspace
+            </Badge>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-3">
+              Welcome back, <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{profile?.full_name?.split(' ')[0] || "Pro"}</span>
+            </h1>
+            <p className="text-xl text-muted-foreground font-medium max-w-2xl leading-relaxed">
+              Your professional hub for managing projects, showcasing expertise, and connecting with world-class clients.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 bg-white dark:bg-slate-900 px-6 py-5 rounded-3xl shadow-sm border ring-1 ring-slate-100 dark:ring-slate-800">
+            <div className="text-right">
+              <div className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Availability</div>
+              <div className={`text-sm font-black ${isAvailable ? 'text-green-600' : 'text-slate-400'}`}>
+                {isAvailable ? "OPEN FOR NEW CLIENTS" : "CURRENTLY BUSY"}
               </div>
-              <Switch checked={isAvailable} onCheckedChange={async (val) => {
+            </div>
+            <Switch
+              checked={isAvailable}
+              onCheckedChange={async (val) => {
                 setIsAvailable(val);
-                // Update availability immediately
                 try {
                   await api.post('/freelancers', { ...freelancerProfile, available: val });
                 } catch (e) {
                   toast.error("Failed to update status");
                 }
-              }} />
-            </div>
+              }}
+              className="scale-125"
+            />
           </div>
+        </div>
 
-          {/* Profile Header with Avatar */}
-          <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-2 border-primary/20 hover:border-primary/40 transition-all mb-6 shadow-lg">
-            <CardHeader>
-              <div className="flex items-start gap-6">
-                <div className="relative group">
-                  <Avatar className="h-28 w-28 border-4 border-white shadow-xl">
-                    <AvatarImage src={profile?.profile_image || ""} />
-                    <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-accent text-white">
-                      {profile?.full_name?.charAt(0) || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <label
-                    htmlFor="profile-image-upload"
-                    className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                  >
-                    <Camera className="h-10 w-10 text-white" />
-                  </label>
-                  <input
-                    id="profile-image-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleProfileImageUpload}
-                    disabled={uploadingProfileImage}
-                  />
-                </div>
-                <div className="flex-1">
-                  <CardTitle className="text-3xl mb-2">{profile?.full_name || "Set your name"}</CardTitle>
-                  <CardDescription className="text-base">{profile?.bio || "Add a bio to tell clients about yourself"}</CardDescription>
-                </div>
+        {/* Dynamic Insights Grid */}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-12">
+          <Card className="border-none shadow-md bg-white dark:bg-slate-900 group hover:shadow-xl transition-all duration-300 overflow-hidden">
+            <div className="h-1.5 w-full bg-blue-500" />
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Showcase Pieces</CardTitle>
+              <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 group-hover:scale-110 transition-transform">
+                <Briefcase className="h-5 w-5" />
               </div>
             </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-black mb-1">{portfolios.length}</div>
+              <p className="text-xs text-blue-600 font-bold flex items-center gap-1">
+                Total Portfolio Items
+              </p>
+            </CardContent>
           </Card>
 
-          {/* Profile Completion */}
-          <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-2 border-primary/20 shadow-md">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-base font-semibold">Profile Completion</span>
-                <span className="text-lg font-bold text-primary">{profileCompletion}%</span>
+          <Card className="border-none shadow-md bg-white dark:bg-slate-900 group hover:shadow-xl transition-all duration-300 overflow-hidden">
+            <div className="h-1.5 w-full bg-yellow-400" />
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Client Rating</CardTitle>
+              <div className="p-2 rounded-xl bg-yellow-400/10 text-yellow-600 group-hover:scale-110 transition-transform">
+                <Star className={`h-5 w-5 ${totalRatings > 0 ? 'fill-yellow-400' : ''}`} />
               </div>
-              <Progress value={profileCompletion} className="h-3" />
-              {profileCompletion < 100 && (
-                <p className="text-sm text-muted-foreground mt-3">
-                  Complete your profile to attract more clients and stand out
-                </p>
-              )}
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-end gap-2 mb-1">
+                <div className="text-4xl font-black">{totalRatings > 0 ? averageRating.toFixed(1) : '0.0'}</div>
+                <div className="pb-1 text-sm font-bold text-yellow-600">Avg Score</div>
+              </div>
+              <p className="text-xs text-muted-foreground font-medium">{totalRatings} Verified Reviews</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-md bg-white dark:bg-slate-900 group hover:shadow-xl transition-all duration-300 overflow-hidden">
+            <div className="h-1.5 w-full bg-emerald-500" />
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Service Fee</CardTitle>
+              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 group-hover:scale-110 transition-transform">
+                <DollarSign className="h-5 w-5" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-end gap-1 mb-1">
+                <div className="text-4xl font-black">${freelancerProfile?.hourly_rate || 0}</div>
+                <div className="pb-1 text-sm font-bold text-emerald-600">/ Hour</div>
+              </div>
+              <p className="text-xs text-muted-foreground font-medium">Professional Rate</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-md bg-white dark:bg-slate-900 group hover:shadow-xl transition-all duration-300 overflow-hidden">
+            <div className="h-1.5 w-full bg-purple-500" />
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Core Skills</CardTitle>
+              <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 group-hover:scale-110 transition-transform">
+                <Award className="h-5 w-5" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-black mb-1">{freelancerProfile?.skills?.length || 0}</div>
+              <p className="text-xs text-purple-600 font-bold uppercase tracking-tighter">Verified Abilities</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-4 mb-10">
-          <Card className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border-2 border-blue-500/20 hover:border-blue-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-semibold text-muted-foreground">Portfolio Projects</CardTitle>
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
-                <Briefcase className="h-6 w-6 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold mb-1">{portfolios.length}</div>
-              <p className="text-sm text-muted-foreground">Showcase pieces</p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
 
-          <Card className="bg-gradient-to-br from-yellow-500/10 via-yellow-500/5 to-transparent border-2 border-yellow-500/20 hover:border-yellow-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-semibold text-muted-foreground">Average Rating</CardTitle>
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-yellow-500 to-yellow-600 flex items-center justify-center shadow-lg">
-                <Star className="h-6 w-6 text-white fill-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="text-4xl font-bold">{totalRatings > 0 ? averageRating.toFixed(1) : '0.0'}</div>
-                <Star className="h-6 w-6 fill-yellow-400 text-yellow-400" />
-              </div>
-              <p className="text-sm text-muted-foreground">{totalRatings} {totalRatings === 1 ? 'review' : 'reviews'}</p>
-            </CardContent>
-          </Card>
+          {/* Action Hub - Left Column */}
+          <div className="lg:col-span-8 space-y-10">
 
-          <Card className="bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent border-2 border-green-500/20 hover:border-green-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-semibold text-muted-foreground">Hourly Rate</CardTitle>
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg">
-                <DollarSign className="h-6 w-6 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold mb-1">${freelancerProfile?.hourly_rate || 0}</div>
-              <p className="text-sm text-muted-foreground">Per hour</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent border-2 border-orange-500/20 hover:border-orange-500/40 transition-all hover:shadow-xl hover:-translate-y-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-semibold text-muted-foreground">Skills Listed</CardTitle>
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg">
-                <Award className="h-6 w-6 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold mb-1">{freelancerProfile?.skills?.length || 0}</div>
-              <p className="text-sm text-muted-foreground">Technical skills</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left Column - Profile & Skills */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Profile Section */}
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary" />
-                      Professional Profile
-                    </CardTitle>
-                    <CardDescription>Your public-facing information</CardDescription>
+            {/* IdentityCard / Main Info */}
+            <section>
+              <Card className="border-none shadow-xl bg-white dark:bg-slate-900 overflow-hidden rounded-3xl">
+                <div className="h-24 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent flex items-center px-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
+                    <span className="text-xs font-black uppercase tracking-widest text-primary/50">Primary Digital Profile</span>
                   </div>
-                  {!isEditingProfile && (
-                    <Button onClick={() => setIsEditingProfile(true)} size="sm" variant="outline">
-                      <Edit2 className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                  )}
                 </div>
-              </CardHeader>
-              <CardContent className="pt-6">
-                {isEditingProfile ? (
-                  <form onSubmit={handleSaveProfile} className="space-y-4">
-                    <div>
-                      <Label htmlFor="fullName">Full Name</Label>
-                      <Input
-                        id="fullName"
-                        name="fullName"
-                        defaultValue={profile?.full_name}
-                        required
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="bio">Professional Bio</Label>
-                      <Textarea
-                        id="bio"
-                        name="bio"
-                        defaultValue={profile?.bio}
-                        rows={4}
-                        placeholder="Tell clients about your expertise and experience..."
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="domainId">Primary Domain</Label>
-                      <Select name="domainId" defaultValue={freelancerProfile?.domain_id}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select your domain" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {domains.map((domain) => (
-                            <SelectItem key={domain._id} value={domain._id}>
-                              {domain.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="hourlyRate">Hourly Rate (USD)</Label>
-                      <div className="relative mt-1">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="hourlyRate"
-                          name="hourlyRate"
-                          type="number"
-                          step="0.01"
-                          defaultValue={freelancerProfile?.hourly_rate}
-                          className="pl-9"
-                          placeholder="50.00"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <Button type="submit" className="flex-1">
-                        Save Changes
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setIsEditingProfile(false)}
-                        className="flex-1"
+
+                <CardContent className="px-8 pb-10 -mt-12">
+                  <div className="flex flex-col md:flex-row items-end gap-6 mb-10">
+                    <div className="relative group">
+                      <Avatar className="h-32 w-32 md:h-40 md:w-40 border-4 border-background shadow-2xl ring-1 ring-slate-100 overflow-hidden">
+                        <AvatarImage src={profile?.profile_image || ""} className="object-cover" />
+                        <AvatarFallback className="text-5xl bg-slate-100 text-slate-400">
+                          {profile?.full_name?.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <label
+                        htmlFor="profile-image-upload"
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 rounded-full flex items-center justify-center transition-all cursor-pointer backdrop-blur-[2px]"
                       >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="bg-gradient-to-br from-muted/50 to-background p-6 rounded-lg border">
-                      <h3 className="font-bold text-2xl mb-2">{profile?.full_name || "Not set"}</h3>
-                      <p className="text-muted-foreground leading-relaxed">
-                        {profile?.bio || "No bio added yet. Add one to attract more clients!"}
-                      </p>
+                        <Camera className="h-8 w-8 text-white" />
+                      </label>
+                      <input id="profile-image-upload" type="file" className="hidden" onChange={handleProfileImageUpload} />
                     </div>
 
-                    {freelancerProfile && (
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="bg-primary/5 p-4 rounded-lg border border-primary/20">
-                          <p className="text-sm font-medium text-muted-foreground mb-1">Hourly Rate</p>
-                          <p className="text-2xl font-bold text-primary">
-                            ${freelancerProfile.hourly_rate || "Not set"}
-                            {freelancerProfile.hourly_rate && <span className="text-sm font-normal">/hr</span>}
+                    <div className="flex-1 pb-2">
+                      <div className="flex items-center justify-between w-full">
+                        <div>
+                          <h2 className="text-3xl font-black tracking-tight">{profile?.full_name || "New Professional"}</h2>
+                          <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                            {domains.find(d => d._id === (freelancerProfile?.domain_id || freelancerProfile?.domain))?.name || "Uncategorized"} Specialist
                           </p>
                         </div>
-                        <div className="bg-accent/5 p-4 rounded-lg border border-accent/20">
-                          <p className="text-sm font-medium text-muted-foreground mb-1">Domain</p>
-                          <p className="text-lg font-semibold text-accent">
-                            {domains.find(d => d._id === freelancerProfile.domain)?.name || "Not set"}
-                          </p>
-                        </div>
+                        {!isEditingProfile && (
+                          <Button variant="outline" size="sm" onClick={() => setIsEditingProfile(true)} className="rounded-full px-5 h-10 border-slate-200">
+                            <Edit2 className="w-4 h-4 mr-2" />
+                            Edit Profile
+                          </Button>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
 
-            {/* Skills Section */}
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-accent/5 to-primary/5">
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5 text-accent" />
-                  Skills & Expertise
-                </CardTitle>
-                <CardDescription>Showcase your technical abilities</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex flex-wrap gap-2 min-h-[60px]">
-                  {freelancerProfile?.skills?.length > 0 ? (
-                    freelancerProfile.skills.map((skill: string) => (
-                      <Badge
-                        key={skill}
-                        variant="secondary"
-                        className="gap-2 py-1.5 px-3 text-sm hover:bg-primary/10 transition-colors"
-                      >
-                        {skill}
-                        <button
-                          onClick={() => removeSkill(skill)}
-                          className="ml-1 hover:text-destructive transition-colors"
-                        >
-                          ×
-                        </button>
-                      </Badge>
-                    ))
+                  {isEditingProfile ? (
+                    <form onSubmit={handleSaveProfile} className="space-y-6 pt-4 border-t border-slate-50 dark:border-slate-800">
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Legal Name</Label>
+                          <Input name="fullName" defaultValue={profile?.full_name} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Expertise Sector</Label>
+                          <Select name="domainId" defaultValue={freelancerProfile?.domain_id || freelancerProfile?.domain}>
+                            <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-none shadow-2xl">
+                              {domains.map(d => <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Professional Narrative (Bio)</Label>
+                          <Textarea name="bio" defaultValue={profile?.bio} rows={4} className="rounded-2xl bg-slate-50 border-none shadow-inner resize-none p-4" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Performance Rate ($/hr)</Label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <Input name="hourlyRate" type="number" defaultValue={freelancerProfile?.hourly_rate} className="h-12 pl-10 rounded-xl bg-slate-50 border-none shadow-inner" />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 pt-4">
+                        <Button type="submit" className="flex-1 h-12 rounded-xl font-bold shadow-lg shadow-primary/20">Commit Changes</Button>
+                        <Button variant="ghost" onClick={() => setIsEditingProfile(false)} className="px-8 h-12 rounded-xl font-bold">Discard</Button>
+                      </div>
+                    </form>
                   ) : (
-                    <p className="text-muted-foreground text-sm">No skills added yet</p>
+                    <div className="space-y-8 pt-8 border-t border-slate-50 dark:border-slate-800">
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                          Bio & Story
+                        </div>
+                        <p className="text-lg leading-relaxed text-slate-600 dark:text-slate-400 italic">
+                          {profile?.bio || "Describe your professional journey here..."}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Skills & Capability Matrix */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold tracking-tight">Skill Matrix</h2>
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Verified</div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                </div>
+              </div>
+
+              <Card className="border-none shadow-lg bg-white dark:bg-slate-900 rounded-3xl p-8">
+                <div className="flex flex-wrap gap-3 mb-8">
+                  {freelancerProfile?.skills?.map((skill: string) => (
+                    <Badge
+                      key={skill}
+                      className="py-2 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-primary hover:text-white dark:hover:bg-primary transition-all duration-300 border shadow-sm flex items-center gap-2 group/badge"
+                    >
+                      <span className="text-sm font-bold tracking-tight">{skill}</span>
+                      <button onClick={() => removeSkill(skill)} className="p-0.5 rounded-full hover:bg-white/20 opacity-40 group-hover/badge:opacity-100">
+                        <Plus className="w-3.5 h-3.5 rotate-45" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {(!freelancerProfile?.skills || freelancerProfile.skills.length === 0) && (
+                    <div className="text-sm text-muted-foreground italic">No skills listed yet. Add your technical stack below.</div>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add a skill (e.g., React, Python)"
-                    value={newSkill}
-                    onChange={(e) => setNewSkill(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
-                    className="flex-1"
-                  />
-                  <Button onClick={addSkill} size="sm" type="button">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add
+
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <Award className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      placeholder="Introduce a new capability..."
+                      value={newSkill}
+                      onChange={(e) => setNewSkill(e.target.value)}
+                      onKeyPress={(e) => e.key === "Enter" && addSkill()}
+                      className="h-14 pl-12 rounded-2xl bg-slate-50 border-none shadow-inner text-sm font-medium"
+                    />
+                  </div>
+                  <Button onClick={addSkill} className="h-14 w-14 rounded-2xl shadow-lg shadow-primary/10">
+                    <Plus className="w-6 h-6" />
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </Card>
+            </section>
 
-          {/* Right Column - Portfolio */}
-          <div className="space-y-6">
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-success/5 to-primary/5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Briefcase className="h-5 w-5 text-success" />
-                      Portfolio
-                    </CardTitle>
-                    <CardDescription>Your best work</CardDescription>
-                  </div>
-                  {!isAddingPortfolio && (
-                    <Button onClick={() => setIsAddingPortfolio(true)} size="sm">
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
-                  )}
+            {/* Portfolio Showcase */}
+            <section>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Work Portfolio</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Showcase your high-impact deliverables</p>
                 </div>
-              </CardHeader>
-              <CardContent className="pt-6">
-                {isAddingPortfolio && (
-                  <form onSubmit={handleAddPortfolio} className="space-y-4 mb-6 p-4 bg-muted/30 rounded-lg border">
-                    <div>
-                      <Label htmlFor="title">Project Title *</Label>
-                      <Input id="title" name="title" required className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea id="description" name="description" rows={3} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="projectLink">Project Link</Label>
-                      <Input id="projectLink" name="projectLink" type="url" className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="portfolio-image" className="mb-2 block">
-                        Project Image
-                      </Label>
-                      <div className="flex items-center gap-4">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => document.getElementById('portfolio-image')?.click()}
-                          disabled={uploadingPortfolioImage}
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          {uploadingPortfolioImage ? "Uploading..." : "Upload Image"}
-                        </Button>
-                        {portfolioImageUrl && (
-                          <img
-                            src={portfolioImageUrl}
-                            alt="Preview"
-                            className="h-16 w-16 object-cover rounded"
-                          />
-                        )}
+                {!isAddingPortfolio && (
+                  <Button onClick={() => setIsAddingPortfolio(true)} className="rounded-full px-6 h-11 font-bold shadow-sm">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Work
+                  </Button>
+                )}
+              </div>
+
+              {isAddingPortfolio && (
+                <Card className="border-none shadow-2xl bg-white dark:bg-slate-900 rounded-3xl p-8 mb-10 ring-2 ring-primary/5 animate-in slide-in-from-top-4 duration-500">
+                  <form onSubmit={handleAddPortfolio} className="space-y-8">
+                    <div className="grid md:grid-cols-2 gap-8">
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Project Name</Label>
+                          <Input name="title" required className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" placeholder="e.g. Modern E-commerce Engine" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Narrative Context</Label>
+                          <Textarea name="description" rows={4} className="rounded-2xl bg-slate-50 border-none shadow-inner resize-none p-4" placeholder="Briefly describe the challenge and your solution..." />
+                        </div>
                       </div>
-                      <input
-                        id="portfolio-image"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handlePortfolioImageUpload}
-                        disabled={uploadingPortfolioImage}
-                      />
+
+                      <div className="space-y-6">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Demonstration Link</Label>
+                          <Input name="projectLink" type="url" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" placeholder="https://..." />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Visual Asset</Label>
+                          <div className="border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer group/upload" onClick={() => document.getElementById('portfolio-image')?.click()}>
+                            <input id="portfolio-image" type="file" className="hidden" onChange={handlePortfolioImageUpload} />
+                            {portfolioImageUrl ? (
+                              <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg">
+                                <img src={portfolioImageUrl} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/upload:opacity-100 flex items-center justify-center transition-opacity">
+                                  <span className="text-white text-xs font-black uppercase tracking-widest">Replace Asset</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border shadow-sm flex items-center justify-center text-slate-400 group-hover/upload:scale-110 transition-transform">
+                                  <Upload className="w-5 h-5" />
+                                </div>
+                                <div className="text-xs font-bold text-muted-foreground mt-4 group-hover/upload:text-primary transition-colors">UPLOAD THUMBNAIL</div>
+                                {uploadingPortfolioImage && <div className="text-[10px] text-primary mt-2 flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> COMMITTING...</div>}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button type="submit" className="flex-1">Add Portfolio</Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsAddingPortfolio(false);
-                          setPortfolioImageUrl("");
-                        }}
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
+
+                    <div className="flex items-center gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
+                      <Button type="submit" className="flex-1 h-14 rounded-2xl font-black shadow-lg shadow-primary/20">Publish to Showcase</Button>
+                      <Button variant="ghost" className="px-10 h-14 rounded-2xl font-bold" onClick={() => setIsAddingPortfolio(false)}>Discard</Button>
                     </div>
                   </form>
-                )}
+                </Card>
+              )}
 
-                <div className="space-y-4">
-                  {portfolios.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8 text-sm">
-                      No portfolio items yet. Add your first project!
-                    </p>
-                  ) : (
-                    portfolios.map((portfolio) => (
-                      <Card key={portfolio._id} className="group hover:shadow-md transition-all overflow-hidden">
-                        {portfolio.image_url && (
-                          <div className="aspect-video overflow-hidden">
-                            <img
-                              src={portfolio.image_url}
-                              alt={portfolio.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            />
-                          </div>
-                        )}
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
-                            <CardTitle className="text-base">{portfolio.title}</CardTitle>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deletePortfolio(portfolio._id)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                          {portfolio.description && (
-                            <CardDescription className="text-sm line-clamp-2">
-                              {portfolio.description}
-                            </CardDescription>
-                          )}
-                        </CardHeader>
-                        {portfolio.project_link && (
-                          <CardContent className="pt-0">
-                            <a
-                              href={portfolio.project_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary hover:underline flex items-center gap-1"
-                            >
-                              View Project <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </CardContent>
-                        )}
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+              <div className="grid gap-8 md:grid-cols-2">
+                {portfolios.map((portfolio) => (
+                  <Card key={portfolio._id} className="group border-none shadow-md hover:shadow-2xl transition-all duration-500 bg-white dark:bg-slate-900 rounded-3xl overflow-hidden flex flex-col">
+                    <div className="relative aspect-[16/10] overflow-hidden">
+                      {portfolio.image_url ? (
+                        <img src={portfolio.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                          <Briefcase className="w-10 h-10 text-slate-200" />
+                        </div>
+                      )}
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-10 w-10 p-0 rounded-full shadow-lg"
+                          onClick={() => deletePortfolio(portfolio._id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <CardHeader className="flex-1 p-6 pb-0">
+                      <CardTitle className="text-xl font-black tracking-tight group-hover:text-primary transition-colors">{portfolio.title}</CardTitle>
+                      <CardDescription className="mt-2 line-clamp-3 leading-relaxed font-medium italic">
+                        {portfolio.description || "Experimental work focused on modular design and scalability."}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="p-6 pt-5">
+                      {portfolio.project_link && (
+                        <a
+                          href={portfolio.project_link}
+                          target="_blank"
+                          className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.15em] text-primary hover:tracking-[0.2em] transition-all"
+                        >
+                          Exploration <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+                {portfolios.length === 0 && (
+                  <Card className="md:col-span-2 border-dashed border-2 bg-transparent shadow-none p-20 flex flex-col items-center justify-center">
+                    <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-inner mb-6 text-slate-300">
+                      <Briefcase className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-400 mb-2">Portfolio Empty</h3>
+                    <p className="text-sm text-slate-400">Add your first project to start showing off your expertise.</p>
+                    <Button variant="outline" className="mt-6 rounded-full border-slate-200" onClick={() => setIsAddingPortfolio(true)}>Upload Your First Work</Button>
+                  </Card>
+                )}
+              </div>
+            </section>
           </div>
+
+          {/* Sidebar Insights - Right Column */}
+          <div className="lg:col-span-4 space-y-8">
+
+            {/* Progress / Completion */}
+            <Card className="border-none shadow-lg bg-white dark:bg-slate-900 rounded-3xl overflow-hidden p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-black tracking-tight uppercase">Profile Integrity</h3>
+                <div className="w-12 h-12 rounded-full border-4 border-primary/10 flex items-center justify-center text-xs font-black text-primary">
+                  {profileCompletion}%
+                </div>
+              </div>
+              <div className="space-y-4">
+                <Progress value={profileCompletion} className="h-2 rounded-full bg-slate-50 dark:bg-slate-800" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border flex flex-col gap-1">
+                    <span className="text-[10px] font-black uppercase text-muted-foreground">Presence</span>
+                    <div className={`w-2 h-2 rounded-full ${profileCompletion > 60 ? 'bg-green-500' : 'bg-yellow-400'}`} />
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border flex flex-col gap-1">
+                    <span className="text-[10px] font-black uppercase text-muted-foreground">Searchable</span>
+                    <span className="text-[10px] font-black tracking-tighter text-slate-400">ACTIVE</span>
+                  </div>
+                </div>
+                {profileCompletion < 100 && (
+                  <p className="text-xs text-muted-foreground leading-relaxed pt-2">
+                    Complete your digital presence to rank higher in professional searches.
+                  </p>
+                )}
+              </div>
+            </Card>
+
+            {/* Workspace Settings / Sidebar Cards */}
+            <div className="sticky top-24 space-y-8">
+              <Card className="border-none shadow-md bg-white dark:bg-slate-900 rounded-3xl p-8">
+                <h3 className="text-lg font-black tracking-tight uppercase mb-6">Quick Overview</h3>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
+                    <span className="text-sm font-bold text-muted-foreground">Active Domain</span>
+                    <span className="text-sm font-black text-primary">
+                      {domains.find(d => d._id === (freelancerProfile?.domain_id || freelancerProfile?.domain))?.name || "Global"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800">
+                    <span className="text-sm font-bold text-muted-foreground">Rating Tier</span>
+                    <span className="text-sm font-black flex items-center gap-1.5">
+                      <Star className={`w-3.5 h-3.5 ${totalRatings > 0 ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} />
+                      {totalRatings > 0 ? "EXPERT" : "EMERGING"}
+                    </span>
+                  </div>
+                </div>
+                <Button variant="outline" className="w-full mt-8 rounded-2xl h-12 border-slate-200 hover:bg-slate-50 text-sm font-black" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                  GO TO SUMMARY
+                </Button>
+              </Card>
+            </div>
+
+          </div>
+
         </div>
       </div>
     </div>

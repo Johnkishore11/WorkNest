@@ -14,6 +14,9 @@ import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PublicRoute from "./components/PublicRoute";
+import { Footer } from "./components/Footer";
+
 
 const queryClient = new QueryClient();
 
@@ -26,7 +29,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
+            <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/freelancers/:domainId" element={<ProtectedRoute><FreelancersList /></ProtectedRoute>} />
             <Route path="/freelancer/:userId" element={<ProtectedRoute><FreelancerProfile /></ProtectedRoute>} />
@@ -36,7 +39,9 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <Footer />
         </BrowserRouter>
+
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

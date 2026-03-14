@@ -57,7 +57,6 @@ export default function Messages() {
     }
   }, [user, authLoading, navigate]);
 
-
   const loadMessages = async () => {
     setIsLoading(true);
     try {
@@ -66,8 +65,8 @@ export default function Messages() {
     } catch (error) {
       console.error("Error loading messages:", error);
       toast({
-        title: "Error",
-        description: "Failed to load messages",
+        title: "Communication Offline",
+        description: "Failed to sync your professional inbox.",
         variant: "destructive",
       });
     } finally {
@@ -81,8 +80,6 @@ export default function Messages() {
     const threadsMap = new Map<string, ConversationThread>();
 
     messages.forEach((msg) => {
-      // Handle MongoDB _id vs sender/receiver objects
-      // The API returns sender and receiver as populated objects
       const senderId = msg.sender._id || (msg.sender as any);
       const receiverId = msg.receiver._id || (msg.receiver as any);
       const senderName = msg.sender.full_name || "Unknown";
@@ -109,6 +106,12 @@ export default function Messages() {
       if (!msg.read && isReceived) {
         thread.unreadCount++;
       }
+
+      // Ensure we have the most recent message as the "lastMessage"
+      if (new Date(msg.createdAt) > new Date(thread.lastMessageTime)) {
+        thread.lastMessage = msg.message;
+        thread.lastMessageTime = msg.createdAt;
+      }
     });
 
     return Array.from(threadsMap.values()).sort((a, b) =>
@@ -119,17 +122,17 @@ export default function Messages() {
   const markThreadAsRead = async (contactId: string) => {
     if (!user) return;
 
-    // Find unread messages from this contact
     const unreadMessages = messages.filter(msg => {
       const senderId = msg.sender._id || (msg.sender as any);
       const receiverId = msg.receiver._id || (msg.receiver as any);
       return senderId === contactId && receiverId === user._id && !msg.read;
     });
 
+    if (unreadMessages.length === 0) return;
+
     try {
       await Promise.all(unreadMessages.map(msg => api.put(`/messages/${msg._id}/read`, {})));
 
-      // Update local state
       setMessages(messages.map(msg => {
         const senderId = msg.sender._id || (msg.sender as any);
         const receiverId = msg.receiver._id || (msg.receiver as any);
@@ -160,20 +163,16 @@ export default function Messages() {
       });
 
       toast({
-        title: "Success",
-        description: "Message sent successfully",
+        title: "Message Dispatched",
+        description: "Your reply has been sent successfully.",
       });
       setReplyText("");
-
-      // Refresh messages or manually add to state
       await loadMessages();
-
-      // Optimistic update could be done here but loadMessages is safer for consistency
     } catch (error) {
       console.error("Error sending reply:", error);
       toast({
-        title: "Error",
-        description: "Failed to send reply",
+        title: "Transmission Failed",
+        description: "Could not send your response. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -208,7 +207,7 @@ export default function Messages() {
 
   if (isLoading || authLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50">
         <Navbar />
         <div className="flex items-center justify-center h-[calc(100vh-80px)]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -218,92 +217,94 @@ export default function Messages() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50">
       <Navbar />
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="mb-6">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
+              <MessageSquare className="h-7 w-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight">Collaboration <span className="text-primary italic">Hub</span></h1>
+              <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Managing your professional network</p>
+            </div>
+          </div>
           <Button
             variant="ghost"
             onClick={() => navigate("/dashboard")}
-            className="mb-4 hover:bg-primary/10"
+            className="hover:bg-primary/10 rounded-full px-6 transition-all"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <MessageSquare className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Messages
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Stay connected with your network
-              </p>
-            </div>
-          </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6 h-[calc(100vh-280px)]">
-          {/* Conversations List */}
-          <Card className="lg:col-span-1 border-2 shadow-lg">
-            <CardHeader className="border-b bg-muted/30">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Inbox className="h-5 w-5 text-primary" />
-                Conversations
+        <div className="grid lg:grid-cols-12 gap-8 h-[calc(100vh-280px)] min-h-[600px]">
+          {/* Conversations List - LH Sidebar */}
+          <Card className="lg:col-span-4 border-none shadow-xl bg-white dark:bg-slate-900 rounded-3xl overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                  <Inbox className="w-3.5 h-3.5" />
+                  Active Inquiries
+                </span>
                 {conversationThreads.reduce((sum, t) => sum + t.unreadCount, 0) > 0 && (
-                  <Badge variant="default" className="ml-auto">
-                    {conversationThreads.reduce((sum, t) => sum + t.unreadCount, 0)}
+                  <Badge className="bg-primary text-white font-black rounded-full px-2.5">
+                    {conversationThreads.reduce((sum, t) => sum + t.unreadCount, 0)} NEW
                   </Badge>
                 )}
-              </CardTitle>
-            </CardHeader>
-            <ScrollArea className="h-[calc(100vh-380px)]">
+              </div>
+            </div>
+
+            <ScrollArea className="flex-1">
               {conversationThreads.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 px-4">
-                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Mail className="h-8 w-8 text-muted-foreground" />
+                <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+                  <div className="h-16 w-16 rounded-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-6 text-slate-300">
+                    <Mail className="h-8 w-8" />
                   </div>
-                  <p className="text-center text-muted-foreground font-medium">No messages yet</p>
-                  <p className="text-center text-sm text-muted-foreground mt-1">
-                    Start a conversation with a freelancer
+                  <h3 className="text-lg font-bold mb-2">Workspace Clear</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed italic">
+                    Once you initiate an inquiry with a freelancer, your conversation will appear here.
                   </p>
+                  <Button variant="outline" className="mt-8 rounded-full px-8 shadow-sm" onClick={() => navigate('/')}>
+                    Discover Talent
+                  </Button>
                 </div>
               ) : (
-                <div className="divide-y">
+                <div className="p-2 space-y-1">
                   {conversationThreads.map((thread) => (
                     <div
                       key={thread.contactId}
                       onClick={() => handleSelectThread(thread)}
-                      className={`p-4 cursor-pointer transition-all hover:bg-muted/50 ${selectedThread?.contactId === thread.contactId
-                        ? "bg-primary/5 border-l-4 border-primary"
-                        : ""
+                      className={`p-4 rounded-2xl cursor-pointer transition-all duration-300 group ${selectedThread?.contactId === thread.contactId
+                          ? "bg-primary/10 shadow-sm"
+                          : "hover:bg-slate-50 dark:hover:bg-slate-800"
                         }`}
                     >
                       <div className="flex items-start gap-3">
-                        <Avatar className="h-12 w-12 border-2 border-primary/20">
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-semibold">
+                        <Avatar className="h-14 w-14 rounded-2xl border-2 border-white dark:border-slate-900 shadow-md">
+                          <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-primary font-black text-lg">
                             {getInitials(thread.contactName)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-semibold text-sm truncate">
+                            <span className={`font-black tracking-tight truncate ${selectedThread?.contactId === thread.contactId ? 'text-primary' : ''}`}>
                               {thread.contactName}
                             </span>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                            <span className="text-[10px] font-bold text-muted-foreground whitespace-nowrap ml-2 opacity-60">
                               {formatTime(thread.lastMessageTime)}
                             </span>
                           </div>
-                          <p className={`text-sm line-clamp-2 ${thread.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground"
+                          <p className={`text-xs line-clamp-2 leading-relaxed italic font-medium ${thread.unreadCount > 0 ? "text-foreground font-bold" : "text-muted-foreground opacity-70"
                             }`}>
                             {thread.lastMessage}
                           </p>
                           {thread.unreadCount > 0 && (
-                            <Badge variant="default" className="mt-2 text-xs">
-                              {thread.unreadCount} new
-                            </Badge>
+                            <div className="flex justify-end mt-2">
+                              <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
+                            </div>
                           )}
                         </div>
                       </div>
@@ -314,30 +315,31 @@ export default function Messages() {
             </ScrollArea>
           </Card>
 
-          {/* Chat Area */}
-          <Card className="lg:col-span-2 border-2 shadow-lg flex flex-col">
+          {/* Core Collaboration Console - Chat Area */}
+          <Card className="lg:col-span-8 border-none shadow-2xl bg-white dark:bg-slate-900 rounded-3xl overflow-hidden flex flex-col">
             {selectedThread ? (
               <>
-                {/* Chat Header */}
-                <CardHeader className="border-b bg-muted/30">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10 border-2 border-primary/20">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-semibold">
+                {/* Chat Console Header */}
+                <div className="p-6 border-b border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12 rounded-2xl border-2 border-primary/10">
+                      <AvatarFallback className="bg-primary/5 text-primary font-black">
                         {getInitials(selectedThread.contactName)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <CardTitle className="text-lg">{selectedThread.contactName}</CardTitle>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedThread.messages.length} messages
-                      </p>
+                      <h3 className="text-xl font-black tracking-tight">{selectedThread.contactName}</h3>
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Collaboration Session</span>
+                      </div>
                     </div>
                   </div>
-                </CardHeader>
+                </div>
 
-                {/* Messages */}
-                <ScrollArea className="flex-1 p-6">
-                  <div className="space-y-4">
+                {/* Secure Message Stream */}
+                <ScrollArea className="flex-1 p-8 bg-slate-50/30 dark:bg-slate-900/10">
+                  <div className="space-y-8">
                     {selectedThread.messages
                       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                       .map((msg) => {
@@ -346,38 +348,23 @@ export default function Messages() {
                         return (
                           <div
                             key={msg._id}
-                            className={`flex gap-3 animate-fade-in ${isSent ? "flex-row-reverse" : ""}`}
+                            className={`flex gap-4 animate-in slide-in-from-bottom-2 duration-500 ${isSent ? "flex-row-reverse" : ""}`}
                           >
-                            <Avatar className="h-8 w-8 border-2 border-primary/10 flex-shrink-0">
-                              <AvatarFallback className={`text-xs font-semibold ${isSent
-                                ? "bg-gradient-to-br from-primary to-accent text-white"
-                                : "bg-muted text-muted-foreground"
-                                }`}>
-                                {getInitials(isSent ? "You" : msg.sender.full_name)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className={`flex-1 ${isSent ? "flex flex-col items-end" : ""}`}>
-                              <div className="flex items-baseline gap-2 mb-1">
-                                <span className={`text-xs font-medium ${isSent ? "text-primary" : "text-muted-foreground"
-                                  }`}>
-                                  {isSent ? "You" : msg.sender.full_name}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatTime(msg.createdAt)}
-                                </span>
+                            <div className={`flex flex-col max-w-[85%] ${isSent ? "items-end" : "items-start"}`}>
+                              <div className="flex items-center gap-2 mb-2 px-1">
+                                {!isSent && <span className="text-[10px] font-black uppercase text-primary tracking-widest">{msg.sender.full_name}</span>}
+                                <span className="text-[10px] font-bold text-muted-foreground opacity-40">{formatTime(msg.createdAt)}</span>
                               </div>
-                              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${isSent
-                                ? "bg-gradient-to-r from-primary to-accent text-primary-foreground"
-                                : "bg-muted"
+                              <div className={`rounded-3xl px-6 py-4 shadow-sm border ${isSent
+                                  ? "bg-gradient-to-r from-primary to-accent text-white border-transparent"
+                                  : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700"
                                 }`}>
                                 {msg.subject && !msg.subject.startsWith("Re:") && (
-                                  <p className={`font-semibold text-sm mb-1 ${isSent ? "text-primary-foreground/90" : "text-foreground"
-                                    }`}>
+                                  <div className={`text-xs font-black uppercase tracking-[0.15em] mb-2 pb-2 border-b ${isSent ? 'border-white/10 opacity-90' : 'border-slate-50 dark:border-slate-700 opacity-60'}`}>
                                     {msg.subject}
-                                  </p>
+                                  </div>
                                 )}
-                                <p className={`text-sm whitespace-pre-wrap ${isSent ? "text-primary-foreground" : "text-foreground"
-                                  }`}>
+                                <p className={`text-sm leading-relaxed font-medium ${isSent ? "text-white" : "text-slate-600 dark:text-slate-300"}`}>
                                   {msg.message}
                                 </p>
                               </div>
@@ -388,11 +375,11 @@ export default function Messages() {
                   </div>
                 </ScrollArea>
 
-                {/* Reply Input */}
-                <CardContent className="border-t bg-muted/20 p-4">
-                  <div className="flex gap-3">
+                {/* Dispatch Console - Reply Input */}
+                <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-50 dark:border-slate-800">
+                  <div className="relative group">
                     <Textarea
-                      placeholder="Type your message..."
+                      placeholder="Type your professional response..."
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
                       onKeyDown={(e) => {
@@ -401,35 +388,39 @@ export default function Messages() {
                           handleSendReply();
                         }
                       }}
-                      className="min-h-[80px] resize-none border-2 focus:border-primary"
+                      className="min-h-[120px] rounded-3xl resize-none border-none bg-slate-50 dark:bg-slate-950 p-6 text-sm font-medium focus:ring-2 focus:ring-primary/20 shadow-inner"
                     />
-                    <Button
-                      onClick={handleSendReply}
-                      disabled={isSending || !replyText.trim()}
-                      className="bg-gradient-to-r from-primary to-accent hover:opacity-90 self-end"
-                      size="lg"
-                    >
-                      {isSending ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Send className="h-5 w-5" />
-                      )}
-                    </Button>
+                    <div className="absolute bottom-4 right-4 flex items-center gap-3">
+                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-40 hidden md:inline">Shift+Enter for newline</span>
+                      <Button
+                        onClick={handleSendReply}
+                        disabled={isSending || !replyText.trim()}
+                        className="h-12 w-12 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                      >
+                        {isSending ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Send className="h-5 w-5 ml-0.5" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Press Enter to send, Shift + Enter for new line
-                  </p>
-                </CardContent>
+                </div>
               </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-8">
-                <div className="h-24 w-24 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-6">
-                  <MessageSquare className="h-12 w-12 text-primary" />
+              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+                <div className="h-32 w-32 rounded-[2.5rem] bg-slate-50 dark:bg-slate-800 flex items-center justify-center mb-10 shadow-inner group">
+                  <MessageSquare className="h-14 w-14 text-slate-200 group-hover:text-primary/20 transition-colors duration-500" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Select a conversation</h3>
-                <p className="text-center text-muted-foreground max-w-sm">
-                  Choose a conversation from the list to view messages and start chatting
+                <h3 className="text-2xl font-black tracking-tight mb-3">Select a Conversation</h3>
+                <p className="max-w-xs text-sm text-muted-foreground font-medium italic leading-relaxed">
+                  Choose a collaboration session from the sidebar to coordinate your professional activities.
                 </p>
+                <div className="mt-10 flex items-center gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                </div>
               </div>
             )}
           </Card>

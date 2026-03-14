@@ -22,154 +22,154 @@ const Index = () => {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-        <div
-          className="absolute inset-0 z-0"
-          style={{
-            backgroundImage: `url(${heroBg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/95 via-primary/90 to-accent/90" />
+      <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src={heroBg}
+            alt="Background"
+            className="w-full h-full object-cover opacity-20"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background" />
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
         </div>
 
-        <div className="container mx-auto px-4 py-32 relative z-10">
-          <div className="max-w-5xl mx-auto text-center text-white">
-            <div className="inline-block mb-6 px-6 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-700">
-              🚀 The #1 Platform for Hiring Freelancers
-            </div>
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-8 animate-in fade-in slide-in-from-bottom-4 duration-1000 tracking-tight">
-              Find Your Perfect
-              <span className="block mt-3 bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">
-                Freelancer Match
-              </span>
-            </h1>
-            <p className="text-lg md:text-xl lg:text-2xl mb-12 text-white/90 animate-in fade-in slide-in-from-bottom-5 duration-1000 delay-200 max-w-3xl mx-auto leading-relaxed font-light">
-              Connect with top-tier professionals across 50+ domains. Build exceptional projects with the world's best talent.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-5 justify-center animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
-              <Button
-                size="lg"
-                onClick={() => navigate("/auth")}
-                className="bg-white text-primary hover:bg-white/95 text-lg px-12 py-7 shadow-2xl hover:shadow-white/30 transition-all hover:scale-105 font-semibold"
-              >
-                Start Hiring Now
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => navigate("/auth")}
-                className="bg-white/5 text-white border-2 border-white/40 hover:bg-white/15 hover:border-white/60 text-lg px-12 py-7 backdrop-blur-md font-semibold"
-              >
-                Join as Freelancer
-              </Button>
-            </div>
+        <div className="container mx-auto px-4 relative z-10 text-center">
+          <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-primary/20 bg-primary/5 text-primary text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-500 hover:bg-primary/10 transition-colors cursor-default">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+            </span>
+            The #1 Platform for Hiring Freelancers
+          </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-8 mt-20 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
-              <div className="text-center">
-                <div className="text-4xl md:text-5xl font-bold mb-2">10K+</div>
-                <div className="text-white/80 text-sm md:text-base">Active Freelancers</div>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl md:text-5xl font-bold mb-2">50+</div>
-                <div className="text-white/80 text-sm md:text-base">Skill Domains</div>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl md:text-5xl font-bold mb-2">98%</div>
-                <div className="text-white/80 text-sm md:text-base">Satisfaction Rate</div>
-              </div>
-            </div>
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-8 tracking-tight animate-in fade-in slide-in-from-bottom-4 duration-700">
+            Find Your Perfect <br className="hidden md:block" />
+            <span className="text-gradient">Freelancer Match</span>
+          </h1>
+
+          <p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-5 duration-700 delay-100">
+            Connect with top-tier professionals across 50+ domains.
+            Build exceptional projects with the world's best talent.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
+            <Button
+              size="lg"
+              onClick={() => navigate("/auth")}
+              className="text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-primary/25 transition-all hover:scale-105"
+            >
+              Start Hiring Now
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => navigate("/auth")}
+              className="text-lg px-8 py-6 rounded-xl backdrop-blur-md bg-background/50 border-primary/20 hover:bg-muted/50 transition-all hover:scale-105"
+            >
+              Join as Freelancer
+            </Button>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-24 px-4 bg-gradient-to-b from-background to-muted/20">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4">
-              How WorkNest Works
+      <section className="py-32 relative bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-20">
+            <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">
+              Why Professionals Choose <span className="text-gradient">WorkNest</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Four simple steps to connect with world-class talent
+              We provide the ecosystem you need to build, scale, and succeed.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <Card className="hover:shadow-xl transition-all hover:-translate-y-2 border-2 hover:border-primary/50 group">
-              <CardContent className="pt-8 pb-8">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-                  <Search className="h-8 w-8" />
-                </div>
-                <div className="absolute top-4 right-4 text-5xl font-bold text-primary/5">01</div>
-                <h3 className="font-bold text-xl mb-3">Browse Domains</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Explore 50+ professional domains and find the perfect expertise for your project
-                </p>
-              </CardContent>
-            </Card>
 
-            <Card className="hover:shadow-xl transition-all hover:-translate-y-2 border-2 hover:border-primary/50 group">
-              <CardContent className="pt-8 pb-8">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-                  <Briefcase className="h-8 w-8" />
-                </div>
-                <div className="absolute top-4 right-4 text-5xl font-bold text-primary/5">02</div>
-                <h3 className="font-bold text-xl mb-3">View Portfolios</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Review detailed portfolios, ratings, and project histories to make informed decisions
-                </p>
-              </CardContent>
-            </Card>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                icon: <Search className="w-6 h-6 text-primary" />,
+                title: "Smart Matching",
+                description: "Our AI-driven matching system pairs you with the perfect talent for your specific needs."
+              },
+              {
+                icon: <Briefcase className="w-6 h-6 text-accent" />,
+                title: "Verified Portfolios",
+                description: "Every freelancer is vetted. Review detailed portfolios and past project success rates."
+              },
+              {
+                icon: <MessageSquare className="w-6 h-6 text-indigo-500" />,
+                title: "Seamless Chat",
+                description: "Connect instantly. Our integrated messaging ensures smooth communication and collaboration."
+              },
+              {
+                icon: <TrendingUp className="w-6 h-6 text-emerald-500" />,
+                title: "Growth Focused",
+                description: "Tools and insights designed to help both clients and freelancers scale their business."
+              }
+            ].map((feature, index) => (
+              <Card key={index} className="glass dark:glass-dark border-0 shadow-lg hover:shadow-xl transition-all hover:-translate-y-2 group">
+                <CardContent className="p-8">
+                  <div className="w-12 h-12 rounded-2xl bg-background shadow-inner flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    {feature.icon}
+                  </div>
+                  <h3 className="font-bold text-xl mb-3">{feature.title}</h3>
+                  <p className="text-muted-foreground leading-relaxed text-sm">
+                    {feature.description}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
 
-            <Card className="hover:shadow-xl transition-all hover:-translate-y-2 border-2 hover:border-primary/50 group">
-              <CardContent className="pt-8 pb-8">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-                  <MessageSquare className="h-8 w-8" />
-                </div>
-                <div className="absolute top-4 right-4 text-5xl font-bold text-primary/5">03</div>
-                <h3 className="font-bold text-xl mb-3">Connect Directly</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Message freelancers instantly to discuss requirements and negotiate terms
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-xl transition-all hover:-translate-y-2 border-2 hover:border-primary/50 group">
-              <CardContent className="pt-8 pb-8">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-                  <TrendingUp className="h-8 w-8" />
-                </div>
-                <div className="absolute top-4 right-4 text-5xl font-bold text-primary/5">04</div>
-                <h3 className="font-bold text-xl mb-3">Grow Together</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Build lasting partnerships and scale your business with reliable talent
-                </p>
-              </CardContent>
-            </Card>
+      {/* Stats Section */}
+      <section className="py-20 bg-primary text-primary-foreground">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {[
+              { number: "10K+", label: "Active Freelancers" },
+              { number: "50+", label: "Skill Domains" },
+              { number: "98%", label: "Satisfaction Rate" },
+              { number: "24/7", label: "Support Available" }
+            ].map((stat, index) => (
+              <div key={index} className="p-4">
+                <div className="text-4xl md:text-5xl font-bold mb-2">{stat.number}</div>
+                <div className="text-primary-foreground/80 text-sm md:text-base font-medium">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
       <section className="py-24 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/10 to-primary/10" />
-        <div className="container mx-auto max-w-4xl text-center relative z-10">
-          <div className="bg-gradient-to-br from-primary to-accent p-12 md:p-16 rounded-3xl shadow-2xl text-white">
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">
-              Ready to Transform Your Business?
-            </h2>
-            <p className="text-lg md:text-xl mb-10 text-white/90 max-w-2xl mx-auto">
-              Join 10,000+ professionals who trust WorkNest to build exceptional projects
-            </p>
-            <Button
-              size="lg"
-              onClick={() => navigate("/auth")}
-              className="bg-white text-primary hover:bg-white/95 px-12 py-7 text-lg font-semibold shadow-xl hover:shadow-2xl transition-all hover:scale-105"
-            >
-              Get Started for Free
-            </Button>
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-primary/5" />
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-accent/20 rounded-full blur-3xl opacity-50" />
+          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-primary/20 rounded-full blur-3xl opacity-50" />
+        </div>
+        <div className="container mx-auto max-w-5xl text-center relative z-10">
+          <div className="glass dark:glass-dark p-12 md:p-20 rounded-3xl shadow-2xl border border-primary/20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 opacity-50" />
+            <div className="relative z-10">
+              <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">
+                Ready to Transform Your Business?
+              </h2>
+              <p className="text-lg md:text-xl mb-10 text-muted-foreground max-w-2xl mx-auto">
+                Join 10,000+ professionals who trust WorkNest to build exceptional projects.
+                Get started today and experience the future of work.
+              </p>
+              <Button
+                size="lg"
+                onClick={() => navigate("/auth")}
+                className="text-lg px-10 py-7 rounded-xl shadow-xl hover:shadow-2xl transition-all hover:scale-105"
+              >
+                Get Started for Free
+              </Button>
+            </div>
           </div>
         </div>
       </section>

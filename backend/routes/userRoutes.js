@@ -54,4 +54,63 @@ router.put('/:id', protect, async (req, res) => {
     }
 });
 
+// @desc    Get saved freelancers
+// @route   GET /api/users/saved
+// @access  Private
+router.get('/saved/list', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).populate('saved_freelancers', '-password');
+        if (user) {
+            res.json(user.saved_freelancers);
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @desc    Save a freelancer
+// @route   POST /api/users/save/:freelancerId
+// @access  Private
+router.post('/save/:freelancerId', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        const freelancerToSave = await User.findById(req.params.freelancerId);
+
+        if (!freelancerToSave || freelancerToSave.role !== 'freelancer') {
+            return res.status(404).json({ message: 'Freelancer not found' });
+        }
+
+        if (user.saved_freelancers.includes(req.params.freelancerId)) {
+            return res.status(400).json({ message: 'Freelancer already saved' });
+        }
+
+        user.saved_freelancers.push(req.params.freelancerId);
+        await user.save();
+
+        res.json({ message: 'Freelancer saved successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @desc    Unsave a freelancer
+// @route   DELETE /api/users/save/:freelancerId
+// @access  Private
+router.delete('/save/:freelancerId', protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        user.saved_freelancers = user.saved_freelancers.filter(
+            id => id.toString() !== req.params.freelancerId
+        );
+
+        await user.save();
+        res.json({ message: 'Freelancer removed from saved list' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;
